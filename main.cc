@@ -1,12 +1,13 @@
 #include <stdio.h>
+#include "public.h"
 #include "shmHash.h"
 
 
 void TestReadShm()
 {
     int uid = 2333;
-    TUser user;
-    CShm shm;
+    ValType user;
+    CShmHash shm;
     
     shm.AttachShm();
     if (SHM_OK == shm.ReadShm(uid, (char*)&user, sizeof(user)))
@@ -22,8 +23,8 @@ void TestReadShm()
 
 void TestMutliWriteShm()
 {
-    TUser user;
-    CShm shm;
+    ValType user;
+    CShmHash shm;
 
     int i = 0;
     user.uid = 2300;
@@ -53,7 +54,7 @@ void TestMutliWriteShm()
             TestReadShm();
             break;
         }
-        usleep(100*1000);
+        usleep(5*1000);
     }
 }
 
@@ -61,16 +62,15 @@ void TestBenchReadShm()
 {
     // confirm data record in shm
     const int QUERY_TIME = 20000000;
-    TUser user;
-    CShm shm;
+    ValType user;
+    CShmHash shm;
     char timeBuf[64];
 
-    shm.AttachShm();
-
     printf("BenchMark lidi QUERY_TIME=%d\n", QUERY_TIME);
-
     GetCurrentTime(timeBuf, sizeof(timeBuf));
     printf("Query start time: %s\n", timeBuf);
+
+    shm.AttachShm();
 
     int cnt = 0;
     while (cnt < QUERY_TIME)

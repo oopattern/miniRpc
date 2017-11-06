@@ -2,9 +2,6 @@
 #include <stdlib.h>
 #include <assert.h> // assert
 #include <string.h> // memcpy
-#include <pthread.h>// mutex, pthread
-#include <unistd.h> // sleep
-#include <sys/shm.h>// shm
 #include <errno.h>  // errno
 #include <limits.h> // LONG_MAX
 #include <math.h>   // sqrt
@@ -14,35 +11,18 @@
 // hash function seed
 static uint32_t dict_hash_function_seed = 5381;
 
-static unsigned long s_digit_tbl[] = {
-    1000000000UL,
-    100000000UL,
-    10000000,
-    1000000,
-    100000,
-    10000,
-    1000,
-    100,
-    10,
-    1,
-};
-
-const int DIGIT_SIZE = sizeof(s_digit_tbl) / sizeof(s_digit_tbl[0]);
 
 CShmHash::CShmHash()
 {
-    m_hash.size = HASH_BUCKET_SIZE;
-    m_hash.mask = HASH_BUCKET_SIZE - 1;
-    m_hash.used = 0;
-    m_hash.collision = 0;
-
     memset(m_bucket, 0x0, sizeof(m_bucket));
+    m_totalBucket = 0;
     m_bucketSize = HASH_BUCKET_MAX_SIZE;
     m_bucketInitPrime = HASH_INIT_PRIME;
 
     if (InitHash() != SHM_OK)
     {
         printf("Init Hash error\n");
+        exit(-1);
     }
 }
 
@@ -51,8 +31,14 @@ CShmHash::~CShmHash()
 
 }
 
-int CShmHash::CreateShm(unsigned int size = SHM_SIZE)
+int CShmHash::CreateShm(unsigned int size)
 {
+    if (size < (SHM_HEAD_SIZE + m_totalBucket * SHM_NODE_SIZE))
+    {
+        printf("shm size less than bucket node size\n");
+        return SHM_ERROR;
+    }
+
     m_id = ::shmget(SHM_KEY, size, SHM_OPT);
     if (m_id < 0)
     {
@@ -75,9 +61,70 @@ int CShmHash::AttachShm(void)
     return AtShm();
 }
 
+
+void CShmHash::LockShm(void)
+{
+    TShmHead* p = (TShmHead*)m_ptr;
+    ::pthread_mutex_lock(&p->mutex);
+    m_isLock = true; // order can not be wrong!
+}
+
+void CShmHash::UnlockShm(void)
+{
+    m_isLock = false; // order can not be wrong!
+    TShmHead* p = (TShmHead*)m_ptr;
+    ::pthread_mutex_unlock(&p->mutex);
+}
+
+bool CShmHash::IsLockShm(void)
+{
+    return m_isLock;
+}
+
+// add   data: bCreat = true
+// query data: bCreat = false
+// return val: shm node pointer
+char* CShmHash::GetNode(int uid, unsigned int hashKey, bool bCreat)
+{
+    char* dst = NULL;
+    unsigned int primeBucketSize = 0;
+
+    // check out lock shm for shm operation
+    assert(IsLockShm());
+
+    // mutli-order hash for add data or query data
+    for (unsigned int i = 0; i < m_bucketSize; i++)
+    {
+        unsigned int slot = hashKey & m_bucket[i];
+        dst = (char*)m_ptr + SHM_HEAD_SIZE + SHM_NODE_SIZE * (slot + primeBucketSize);
+
+        // add data
+        if ((true == bCreat) 
+            && (false == ((TShmNode*)dst)->bUsed))
+        {
+            printf("insert data success slot=%d, bucket=%d, bucketSize=%d\n", 
+                    slot, i+1, m_bucket[i]);
+            return dst;
+        }
+        // query data
+        else if ((false == bCreat) 
+                && (true == ((TShmNode*)dst)->bUsed) 
+                && (uid == ((TShmNode*)dst)->key)) 
+        {
+            return dst;
+        }
+
+        // next prime bucket
+        primeBucketSize = primeBucketSize + m_bucket[i];
+    }
+
+    printf("uid:%d bCreat:%d GetNode error\n", uid, bCreat);
+    return NULL;
+}
+
 int CShmHash::ReadShm(int uid, char* data, int len)
 {
-    assert((len > 0) && (len <= SHM_DATA_SIZE));
+    assert((len > 0) && (len <= SHM_NODE_SIZE));
     
     if (m_id < 0)
     {
@@ -89,116 +136,53 @@ int CShmHash::ReadShm(int uid, char* data, int len)
     // try other way instead of snprintf, snprintf will more than 6 times!!!  
     char key[32];
     int keylen = ll2string(key, 32, (long)uid);
-    unsigned int h = HashKeyFunction(key, keylen);
-    unsigned int slot = h & m_hash.mask;
-    char* dst = NULL;
+    unsigned int hashKey = CalcHashKey(key, keylen);
 
-    // mutex for sync        
-    TShmHead* p = (TShmHead*)m_ptr;
-    ::pthread_mutex_lock(&p->mutex);
+    LockShm();
 
-    // handle collision
-    int success = 0;
-    dst = (char*)m_ptr + SHM_DATA_POS + (slot * SHM_DATA_SIZE);
-    if (uid == ((TUser*)dst)->uid)
+    char* dst = GetNode(uid, hashKey, false);
+    if (dst != NULL)
     {
-        success = 1;
-        memcpy(data, dst, len);
+        char* pVal = (char*)&(((TShmNode*)dst)->val);
+        memcpy(data, pVal, len);
     }
-    // collision
-    else
-    {
-        int i = 0;
-        while (i < HASH_COLLISION_SIZE)
-        {
-            dst = (char*)m_ptr + SHM_COLLISION_POS + (i * SHM_DATA_SIZE);
-            if (uid == ((TUser*)dst)->uid)
-            {
-                success = 1;
-                memcpy(data, dst, len);
-                break;
-            }
-            i++;
-        }
-    }        
 
-    ::pthread_mutex_unlock(&p->mutex);
+    UnlockShm();
 
-    return ((1 == success) ? SHM_OK : SHM_ERROR);
+    return ((dst != NULL) ? SHM_OK : SHM_ERROR);
 }
 
 // add a value to shma, data struct only for TUser temporary
 int CShmHash::WriteShm(int uid, const char* data, int len)
 {
-    assert((len > 0) && (len <= SHM_DATA_SIZE));
+    assert((len > 0) && (len <= SHM_NODE_SIZE));
     
     if (m_id < 0)
     {
         return SHM_ERROR;
     }
 
-    if (m_hash.collision >= HASH_COLLISION_SIZE)
-    {
-        return SHM_ERROR;
-    }
-
     // get slot to insert data
     char key[32];
-    snprintf(key, sizeof(key), "%d", uid);
-    unsigned int h = HashKeyFunction(key, strlen(key));
-    unsigned int slot = h & m_hash.mask;
-    char* dst = NULL;
+    int keylen = ll2string(key, 32, uid);
+    unsigned int hashKey = CalcHashKey(key, keylen);
 
-    // mutex for sync
-    TShmHead* p = (TShmHead*)m_ptr;
-    ::pthread_mutex_lock(&p->mutex);
+    LockShm();
 
-    // handle collision
-    int success = 0;
-    int collision = 0;
-    dst = (char*)m_ptr + SHM_DATA_POS + (slot * SHM_DATA_SIZE);
-    
-    // normal
-    if (0 == ((TUser*)dst)->uid)
+    char* dst = GetNode(uid, hashKey, true);
+    if (dst != NULL)
     {
-        success = 1;
-        memcpy(dst, data, len);
-        printf("insert data success slot=%d, bucket size=%lu\n", slot, HASH_BUCKET_SIZE);
-    }
-    // collision
-    else
-    {
-        int i = 0;
-        while (i < HASH_COLLISION_SIZE)
-        {
-            dst = (char*)m_ptr + SHM_COLLISION_POS + (i * SHM_DATA_SIZE);
-            if (0 == ((TUser*)dst)->uid)
-            {
-                collision = 1;
-                success = 1;
-                memcpy(dst, data, len);
-                break;
-            }            
-            i++;
-        }
-        printf("----------------------collision=%lu, max collision=%lu-------------------\n", 
-                m_hash.collision, HASH_COLLISION_SIZE);
+        ((TShmNode*)dst)->bUsed = true;
+        ((TShmNode*)dst)->expireTime = 0;
+        ((TShmNode*)dst)->key = uid;
+        
+        char* pVal = (char*)&(((TShmNode*)dst)->val);
+        memcpy(pVal, data, len);
     }
 
-    if (1 == success)
-    {
-        m_hash.used += 1;
-    }
-    if (1 == collision)
-    {
-        m_hash.collision += 1;
-    }
+    UnlockShm();
 
-    printf("hash used=%lu, collision=%lu, max collision=%lu\n", 
-        m_hash.used, m_hash.collision, HASH_COLLISION_SIZE);
-    ::pthread_mutex_unlock(&p->mutex);
-
-    return ((success == 1) ? SHM_OK : SHM_ERROR);
+    return ((dst != NULL) ? SHM_OK : SHM_ERROR);
 }
 
 int CShmHash::AtShm(void)
@@ -251,6 +235,7 @@ int CShmHash::GenHashPrimes(void)
         if (IsPrime(val))
         {
             m_bucket[cnt] = val;
+            m_totalBucket = m_totalBucket + m_bucket[cnt];
             cnt++;        
         }
 
@@ -279,7 +264,7 @@ int CShmHash::InitHash(void)
  * 2. It will not produce the same results on little-endian and big-endian
  *    machines.
  */
-unsigned int CShmHash::HashKeyFunction(const void *key, int len) 
+unsigned int CShmHash::CalcHashKey(const void *key, int len) 
 {
     /* 'm' and 'r' are mixing constants generated offline.
      They're not really 'magic', they just happen to work well.  */
