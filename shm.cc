@@ -2,8 +2,9 @@
 #include<stdlib.h>
 #include<assert.h>
 #include<string.h> // memcpy
+#include<pthread.h>// mutex, pthread
 #include<unistd.h> // sleep
-#include<sys/shm.h> // shm
+#include<sys/shm.h>// shm
 #include<string>
 
 using namespace std;
@@ -17,12 +18,20 @@ typedef long long money_t;
 #define BUF_SIZE    1024
 const char* g_content = "welcome to shm";
 
+// user info
 typedef struct TUser
 {
     int uid;
     char name[64]; // can not use string! delete will core
     money_t money;
 } TUser;
+
+// shm info, include mutex
+typedef struct TShmData
+{
+    pthread_mutex_t mutex;
+    TUser user;
+} TShmData;
 
 class CShm
 {
@@ -63,7 +72,10 @@ public:
             return SHM_ERROR;
         }
 
-        memcpy(data, (char*)m_ptr, len);
+        TShmData* p = (TShmData*)m_ptr;        
+        ::pthread_mutex_lock(&p->mutex);
+        memcpy(data, (char*)&p->user, len);
+        ::pthread_mutex_unlock(&p->mutex);
     }
 
     int WriteShm(const char* data, int len)
@@ -75,7 +87,10 @@ public:
             return SHM_ERROR;
         }
         
-        memcpy((char*)m_ptr, data, len);
+        TShmData* p = (TShmData*)m_ptr;
+        ::pthread_mutex_lock(&p->mutex);
+        memcpy((char*)&p->user, data, len);
+        ::pthread_mutex_unlock(&p->mutex);
         return len;
     }
 private:
@@ -94,6 +109,13 @@ private:
         if (m_ptr == (void*)-1)
         {
             printf("shmat error\n");
+            return SHM_ERROR;
+        }
+        
+        TShmData* p = (TShmData*)m_ptr;
+        if (::pthread_mutex_init(&p->mutex, NULL) != 0)
+        {
+            printf("mutex init error\n");
             return SHM_ERROR;
         }
 
@@ -118,6 +140,33 @@ void TestWriteShm()
     printf("shm write done\n");
 }
 
+void TestMutliWriteShm()
+{
+    TUser user;
+    CShm shm;
+
+    int i = 0;
+    user.uid = 2333;
+    user.money = 66666;
+    snprintf(user.name, sizeof(user.name), "sakula");
+
+    if (shm.CreateShm() != SHM_OK)
+    {
+        return;
+    }
+
+    while (1)
+    {
+        user.uid += 1;
+        user.money += 2;
+        
+        shm.WriteShm((char*)&user, sizeof(user));
+        printf("uid:%d, money:%lld\n", user.uid, user.money);
+        printf("shm write done\n");
+        sleep(2);
+    }
+}
+
 void TestReadShm()
 {
     TUser user;
@@ -125,19 +174,13 @@ void TestReadShm()
     
     shm.AttachShm();
     shm.ReadShm((char*)&user, sizeof(user));
-    printf("uid:%d, name:%s, money:%d\n", user.uid, user.name, user.money);
+    printf("uid:%d, name:%s, money:%lld\n", user.uid, user.name, user.money);
     printf("shm read done\n");
 }
 
 int main(void)
 {
     printf("hello world\n");
-    TestWriteShm();
-    TestReadShm();
-    while (1)
-    {
-        printf("sleep 2 seconde\n");
-        sleep(2);
-    }
+    TestMutliWriteShm();
     return 0;
 }
