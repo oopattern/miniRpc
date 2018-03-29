@@ -2,7 +2,7 @@
 rm CMakeCache.txt
 rm -rf CMakeFiles
 rm cmake_install.cmake
-rm shm_server
+rm demo
 rm Makefile
 rm tags
 rm cscope.files

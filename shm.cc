@@ -5,6 +5,7 @@
 #include <pthread.h>// mutex, pthread
 #include <unistd.h> // sleep
 #include <sys/shm.h>// shm
+#include <errno.h>  // errno
 #include <string>
 #include "hash.h"
 
@@ -55,7 +56,7 @@ public:
         m_id = ::shmget(SHM_KEY, size, SHM_OPT);
         if (m_id < 0)
         {
-            printf("shmget error\n");
+            printf("shmget error:%s\n", strerror(errno));
             return SHM_ERROR;
         }
         printf("create shmid=%d\n", m_id);
@@ -67,7 +68,7 @@ public:
         m_id = ::shmget(SHM_KEY, 0, 0);
         if (m_id < 0)
         {
-            printf("shmget error\n");
+            printf("shmget error:%s\n", strerror(errno));
             return SHM_ERROR;
         }
         printf("attach shmid=%d\n", m_id);
@@ -84,9 +85,11 @@ public:
         }
 
         // get slot to query data
+        // snprintf not strlen is very occpy TPS, so just pay attention to this,
+        // try other way instead of snprintfa, snprintf will more than 6 times!!!  
         char key[32];
-        snprintf(key, sizeof(key), "%d", uid);
-        unsigned int h = HashKeyFunction(key, strlen(key));
+        int keylen = ll2string(key, 32, (long)uid);
+        unsigned int h = HashKeyFunction(key, keylen);
         unsigned int slot = h & m_hash.mask;
         char* dst = NULL;
 
@@ -200,7 +203,10 @@ public:
 private:
     static const int SHM_KEY = 0x20180325; // unique shm key
     static const int SHM_SIZE = 1024 * 1024; // max shm size, 1Mb
-    static const int SHM_OPT = IPC_CREAT | IPC_EXCL; // if exsist will fault
+    
+    // if exsist will fault, pay attention to user mode, 
+    // otherwise will call permission deny
+    static const int SHM_OPT = IPC_CREAT | IPC_EXCL | 0777; 
 
     int AtShm(void)
     {
@@ -212,14 +218,14 @@ private:
         m_ptr = ::shmat(m_id, 0, 0);
         if (m_ptr == (void*)-1)
         {
-            printf("shmat error\n");
+            printf("shmat error:%s\n", strerror(errno));
             return SHM_ERROR;
         }
         
         TShmHead* p = (TShmHead*)m_ptr;
         if (::pthread_mutex_init(&p->mutex, NULL) != 0)
         {
-            printf("mutex init error\n");
+            printf("mutex init error:%s\n", strerror(errno));
             return SHM_ERROR;
         }
 
@@ -286,10 +292,43 @@ void TestMutliWriteShm()
     }
 }
 
+void TestBenchReadShm()
+{
+    // confirm data record in shm
+    const int QUERY_TIME = 20000000;
+    TUser user;
+    CShm shm;
+    char timeBuf[64];
+
+    shm.AttachShm();
+
+    printf("BenchMark QUERY_TIME=%d\n", QUERY_TIME);
+
+    GetCurrentTime(timeBuf, sizeof(timeBuf));
+    printf("Query start time: %s\n", timeBuf);
+
+    int cnt = 0;
+    while (cnt < QUERY_TIME)
+    {
+        int uid = 2301 + cnt % 1;
+        if (SHM_OK != shm.ReadShm(uid, (char*)&user, sizeof(user)))
+        {
+            printf("shm read can not find uid=%d\n", uid);    
+            return;
+        }
+        cnt++;
+    }
+
+    GetCurrentTime(timeBuf, sizeof(timeBuf));
+    printf("Query   end time: %s\n", timeBuf);
+
+    printf("shm read done\n");
+}
+
 int main(void)
 {
     printf("hello world\n");
-    TestMutliWriteShm();
+    TestBenchReadShm();
     printf("shm test finish.\n");
     return 0;
 }

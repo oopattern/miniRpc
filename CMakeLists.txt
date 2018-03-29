@@ -1,6 +1,6 @@
 
 cmake_minimum_required (VERSION 2.8)
 
-add_executable(shm_server 
+add_executable(demo 
                shm.cc
                hash.cc)
