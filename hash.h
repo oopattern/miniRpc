@@ -19,6 +19,7 @@ const unsigned long HASH_COLLISION_SIZE = 100;  // default collision size, 1/10 
 // slot = hashkey & mask
 unsigned int HashKeyFunction(const void *key, int len);
 int ll2string(char* dst, size_t dstlen, long long svalue);
+int Uint2String(char* dst, size_t dstlen, unsigned int value);
 long long TimeInMilliseconds(void);
 void GetCurrentTime(char* timeStr, int timeLen);
 

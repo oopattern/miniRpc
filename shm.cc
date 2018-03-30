@@ -86,7 +86,7 @@ public:
 
         // get slot to query data
         // snprintf not strlen is very occpy TPS, so just pay attention to this,
-        // try other way instead of snprintfa, snprintf will more than 6 times!!!  
+        // try other way instead of snprintf, snprintf will more than 6 times!!!  
         char key[32];
         int keylen = ll2string(key, 32, (long)uid);
         unsigned int h = HashKeyFunction(key, keylen);
@@ -302,7 +302,7 @@ void TestBenchReadShm()
 
     shm.AttachShm();
 
-    printf("BenchMark QUERY_TIME=%d\n", QUERY_TIME);
+    printf("BenchMark lidi QUERY_TIME=%d\n", QUERY_TIME);
 
     GetCurrentTime(timeBuf, sizeof(timeBuf));
     printf("Query start time: %s\n", timeBuf);
@@ -310,7 +310,7 @@ void TestBenchReadShm()
     int cnt = 0;
     while (cnt < QUERY_TIME)
     {
-        int uid = 2301 + cnt % 1;
+        int uid = 2301 + cnt % 100;
         if (SHM_OK != shm.ReadShm(uid, (char*)&user, sizeof(user)))
         {
             printf("shm read can not find uid=%d\n", uid);    
@@ -328,6 +328,7 @@ void TestBenchReadShm()
 int main(void)
 {
     printf("hello world\n");
+    //TestMutliWriteShm();
     TestBenchReadShm();
     printf("shm test finish.\n");
     return 0;

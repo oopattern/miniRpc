@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h> // assert
 #include <sys/time.h>
 #include <time.h>
 #include <limits.h>
@@ -15,6 +16,21 @@ typedef signed char         int8_t;
 
 // hash function seed
 static uint32_t dict_hash_function_seed = 5381;
+
+static unsigned long s_digit_tbl[] = {
+    1000000000UL,
+    100000000UL,
+    10000000,
+    1000000,
+    100000,
+    10000,
+    1000,
+    100,
+    10,
+    1,
+};
+
+const int DIGIT_SIZE = sizeof(s_digit_tbl) / sizeof(s_digit_tbl[0]);
 
 /* MurmurHash2, by Austin Appleby
  * Note - This code makes a few assumptions about how your machine behaves -
@@ -174,6 +190,51 @@ int ll2string(char* dst, size_t dstlen, long long svalue)
     /* Add sign. */
     if (negative) dst[0] = '-';
     return length;
+}
+
+// simple unsigned int to string, more slowly than redis method
+int Uint2String(char* dst, size_t dstlen, unsigned int value)
+{
+    int i = 0;
+    unsigned int cnum = 0;
+    unsigned int digit = 0;
+    bool firstNonZero = false;
+
+    assert(dstlen > DIGIT_SIZE);
+
+    while (i < DIGIT_SIZE)    
+    {
+        if ((i + 1) == DIGIT_SIZE)
+        {
+            digit = value % 10;
+        }
+        else
+        {
+            digit = value / s_digit_tbl[i];        
+        }
+
+        // care first digit not be zero
+        if (!firstNonZero)
+        {
+            if (digit > 0)
+            {
+                firstNonZero = true;
+                value = value - digit * s_digit_tbl[i];
+                dst[cnum++] = digit + '0';                
+            }
+        }
+        else
+        {
+            if (digit >= 0)
+            {
+                value = value - digit * s_digit_tbl[i];
+                dst[cnum++] = digit + '0';                
+            }
+        }
+        i++;
+    }
+
+    return cnum;
 }
 
 long long TimeInMilliseconds(void) 
