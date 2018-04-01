@@ -12,6 +12,14 @@ static double s_threadTime[THREAD_NUM] = {0};
 // query mangitude
 const long long QUERY_TIME = 50 * MILLION;
 
+static void TestReadShm(int threadSeq, long long times);
+static void TestModifyShm(int threadSeq, long long times);
+static void TestAlwaysWriteShm(void);
+static void TestShmMutex(void);
+static void TestShmCapacity();
+static void TestWorkerThread(const ThreadFunc& cb);
+static void TestReadShmTPS(void);
+
 // read shm
 // time > 0: loop times
 // time = 0: loop once
@@ -54,6 +62,22 @@ void TestReadShm(int threadSeq, long long times)
     printf("Work thread tid=%d use time=%lld(ms)\n", CThread::Tid(), end - st);
 }
 
+void TestModifyShm(int threadSeq, long long times)
+{
+    int cnt = 0;
+    CShmHash shm;
+    ValType user;
+
+    shm.AttachShm();
+    while (cnt < times)
+    {
+        // read and modify, different from ReadShm and WriteShm
+        shm.ModifyShm(2333, 1);
+        cnt++;
+    }
+    printf("Work thread modify shm finish\n");
+}
+
 // always change shm data
 void TestAlwaysWriteShm(void)
 {
@@ -80,6 +104,37 @@ void TestAlwaysWriteShm(void)
             printf("uid:%d, shm write error\n", user.uid);
         }
     }
+}
+
+// test shm mutex
+void TestShmMutex(void)
+{
+    int uid = 2333;
+    CShmHash shm;
+    ValType user;
+    long long WRITE_TIMES = MILLION;
+
+    // main pthread clear user data to zero
+    user.uid = uid;
+    user.money = 0;
+    shm.AttachShm();
+    shm.WriteShm(uid, (char*)&user, sizeof(user), false);
+
+    // work pthread modify user data, increase chgVal 
+    for (int i = 0; i < THREAD_NUM; i++)
+    {
+        TestWorkerThread(std::bind(TestModifyShm, i, QUERY_TIME));
+    }
+
+    // wait for work pthread done
+    ::sleep(30);
+    
+    // main pthread read user data 
+    shm.ReadShm(uid, (char*)&user, sizeof(user));
+
+    printf("uid=%d, money=%lld, human money=%s\n", 
+            user.uid, user.money, ShowMagnitude(user.money));
+    printf("TestShmMutex finish\n");
 }
 
 // test how many data can be insert into shm
@@ -121,13 +176,22 @@ void TestShmCapacity()
 }
 
 // work thread for read shm
-void TestWorkerThread(void)
+void TestWorkerThread(const ThreadFunc& cb)
 {
+    // where is delete? will due to memory leak?
+    // code not finish...
+    CThread* p = new CThread(cb);
+    if (p != NULL)
+    {
+        p->Start();
+    }
+
+    /*
     vector<CThread*> threadVec;
-    for (int i = 0; i < THREAD_NUM; i++)
+    for (int i = 0; i < threadNum; i++)
     {        
         // true means always read shm
-        CThread* p = new CThread(std::bind(TestReadShm, i, QUERY_TIME));
+        CThread* p = new CThread(cb);
         threadVec.push_back(p);
     }
 
@@ -140,7 +204,7 @@ void TestWorkerThread(void)
             continue;
         }
         (*it)->Start();
-    }
+    }*/
 }
 
 // test shm read TPS, while read shm, need other threads process shm, simulate full load of CPU
@@ -159,7 +223,10 @@ void TestReadShmTPS(void)
     shm.AttachShm();
 
     // other threads need to operate shm, simulate full load of CPU
-    TestWorkerThread();
+    for (int i = 0; i < THREAD_NUM; i++)
+    {
+        TestWorkerThread(std::bind(TestReadShm, i, QUERY_TIME));
+    }
 
     long long st = TimeInMilliseconds();
 
@@ -206,7 +273,8 @@ int main(void)
 {
     printf("hello world\n");    
     //TestShmCapacity();
-    TestReadShmTPS();
+    //TestReadShmTPS();
+    TestShmMutex();
     printf("shm test finish.\n");
     return 0;
 }

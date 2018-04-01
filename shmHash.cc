@@ -198,6 +198,33 @@ int CShmHash::WriteShm(int uid, const char* data, int len, bool bCreat)
     return ((dst != NULL) ? SHM_OK : SHM_ERROR);
 }
 
+int CShmHash::ModifyShm(int uid, int chgVal)
+{
+    if (m_id < 0)
+    {
+        return SHM_ERROR;
+    }
+
+    char key[32];
+    int keylen = ll2string(key, 32, uid);
+    unsigned int hashKey = CalcHashKey(key, keylen);
+
+    LockShm();
+
+    char* dst = GetNode(uid, hashKey, false);
+    if (dst != NULL)
+    {
+        ((TShmNode*)dst)->bUsed = true;
+        ((TShmNode*)dst)->expireTime = 0;
+        ((TShmNode*)dst)->key = uid;
+        ((TShmNode*)dst)->val.money += chgVal;
+    }
+
+    UnlockShm();
+
+    return ((dst != NULL) ? SHM_OK : SHM_ERROR);
+}
+
 int CShmHash::AtShm(void)
 {
     if (m_id < 0)

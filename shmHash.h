@@ -69,6 +69,7 @@ public:
     ~CShmHash();
     int CreateShm(unsigned int size = SHM_SIZE);
     int AttachShm(void);
+    int ModifyShm(int uid, int chgVal);
     int ReadShm(int uid, char* data, int len);
     int WriteShm(int uid, const char* data, int len, bool bCreat); // bCreat: true mean add data, false mean change data
 
