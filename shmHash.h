@@ -33,7 +33,7 @@ typedef struct THashTbl {
 #endif
 
 // user info
-typedef struct tValType
+typedef struct _tValType
 {
     int uid;
     char name[10]; // shm can not use string or pointer! delete will core
@@ -41,7 +41,7 @@ typedef struct tValType
 } ValType;
 
 // shm node data
-typedef struct tShmNode
+typedef struct _tShmNode
 {
     bool    bUsed; // true: already used
     int     expireTime; // expire time arrived, delete the data
@@ -50,7 +50,7 @@ typedef struct tShmNode
 } TShmNode;
 
 // shm head info, mutex must be in shm head, for mutli process sync
-typedef struct TShmHead
+typedef struct _tShmHead
 {
     pthread_mutex_t mutex;
 } TShmHead;
@@ -76,7 +76,7 @@ public:
     int CreateShm(unsigned int size = SHM_SIZE);
     int AttachShm(void);
     int ReadShm(int uid, char* data, int len);
-    int WriteShm(int uid, const char* data, int len);
+    int WriteShm(int uid, const char* data, int len, bool bCreat); // bCreat: true mean add data, false mean change data
 
 private:
     int AtShm(void);

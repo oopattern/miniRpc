@@ -42,7 +42,7 @@ void TestMutliWriteShm()
         user.money += 2;
         
         // try to insert data into shm
-        if (SHM_OK == shm.WriteShm(user.uid, (char*)&user, sizeof(user)))
+        if (SHM_OK == shm.WriteShm(user.uid, (char*)&user, sizeof(user), true))
         {
             printf("uid:%d, money:%lld\n", user.uid, user.money);
             printf("shm write done\n");
@@ -61,12 +61,12 @@ void TestMutliWriteShm()
 void TestBenchReadShm()
 {
     // confirm data record in shm
-    const int QUERY_TIME = 20000000;
+    const int QUERY_TIME = 20 * MILLION;
     ValType user;
     CShmHash shm;
     char timeBuf[64];
 
-    printf("BenchMark lidi QUERY_TIME=%d\n", QUERY_TIME);
+    printf("BenchMark QUERY_TIME=%s\n", ShowMagnitude(QUERY_TIME));
     GetCurrentTime(timeBuf, sizeof(timeBuf));
     printf("Query start time: %s\n", timeBuf);
 

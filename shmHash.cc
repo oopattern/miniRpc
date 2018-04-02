@@ -153,7 +153,7 @@ int CShmHash::ReadShm(int uid, char* data, int len)
 }
 
 // add a value to shma, data struct only for TUser temporary
-int CShmHash::WriteShm(int uid, const char* data, int len)
+int CShmHash::WriteShm(int uid, const char* data, int len, bool bCreat)
 {
     assert((len > 0) && (len <= SHM_NODE_SIZE));
     
@@ -169,7 +169,8 @@ int CShmHash::WriteShm(int uid, const char* data, int len)
 
     LockShm();
 
-    char* dst = GetNode(uid, hashKey, true);
+    // bCreat: true as add data, false as change data
+    char* dst = GetNode(uid, hashKey, bCreat);
     if (dst != NULL)
     {
         ((TShmNode*)dst)->bUsed = true;

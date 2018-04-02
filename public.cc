@@ -2,6 +2,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <assert.h> // assert
+#include "public.h"
 
 static unsigned long s_digit_tbl[] = {
     1000000000UL,
@@ -63,6 +64,7 @@ int Uint2String(char* dst, size_t dstlen, unsigned int value)
     return cnum;
 }
 
+// unix time with misec
 long long TimeInMilliseconds(void) 
 {
     struct timeval tv;
@@ -70,6 +72,7 @@ long long TimeInMilliseconds(void)
     return (((long long)tv.tv_sec)*1000)+(tv.tv_usec/1000);
 }
 
+// current time with "yy-mm-dd hh:mm::ss msec.usec"
 void GetCurrentTime(char* timeStr, int timeLen)
 {
 	struct timeval tv;
@@ -84,4 +87,28 @@ void GetCurrentTime(char* timeStr, int timeLen)
 	snprintf(timeStr, timeLen, "%4d-%02d-%02d %02d:%02d:%02d %03d.%03d",
 		tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, 
         tm.tm_min, tm.tm_sec, (unsigned int)(tv.tv_usec / 1000), (unsigned int)(tv.tv_usec % 1000));
+}
+
+// show magnitude
+char* ShowMagnitude(unsigned long val)
+{
+    double fp = 0.0;   
+    static char buf[64];
+
+    if (val >= MILLION)
+    {
+        fp = (double)val / MILLION; 
+        snprintf(buf, sizeof(buf), "%.2f million", fp);
+    }
+    else if (val >= THOUSAND)
+    {
+        fp = (double)val / THOUSAND;
+        snprintf(buf, sizeof(buf), "%.2f thousand", fp);
+    }
+    else
+    {
+        snprintf(buf, sizeof(buf), "%lu", val);
+    }
+
+    return buf;
 }
