@@ -6,6 +6,7 @@
 #define gettid() syscall(SYS_gettid)
 
 
+// just use for pthread operation, any other better method?
 typedef struct TThreadData
 {
     ThreadFunc func;

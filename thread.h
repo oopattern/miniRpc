@@ -13,7 +13,9 @@ public:
 
     int Start();
     int Join();
-    pid_t Tid();
+
+    // for everyone to find their tid
+    static pid_t Tid();
 
 private:
     bool        m_started;

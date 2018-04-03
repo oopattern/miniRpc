@@ -1,24 +1,37 @@
 #include <stdio.h>
+#include <vector>
 #include "public.h"
 #include "shmHash.h"
+#include "thread.h"
+
+using namespace std;
 
 
-// read shm once
-void TestOnceReadShm()
+// read shm
+void TestReadShm(bool always)
 {
-    int uid = 2333;
+    int idx = 0;
+    int uid = 2301;
     ValType user;
     CShmHash shm;
     
+    printf("tid=%d doing TestReadShm\n", CThread::Tid());
+
     shm.AttachShm();
-    if (SHM_OK == shm.ReadShm(uid, (char*)&user, sizeof(user)))
-    {
-        printf("uid:%d, name:%s, money:%lld\n", user.uid, user.name, user.money);
-    }
-    else
-    {
-        printf("shm read can not find uid=%d\n", uid);
-    }
+    do 
+    {        
+        uid = uid + idx;
+        if (++idx >= 100)
+        {
+            idx = 0;
+        }
+        if (SHM_OK != shm.ReadShm(uid, (char*)&user, sizeof(user)))
+        {
+            printf("shm read can not find uid=%d\n", uid);
+            break;
+        }
+    } while (always);
+    
     printf("shm read done\n");
 }
 
@@ -81,15 +94,39 @@ void TestShmCapacity()
         else 
         {
             // after read record, end the test
-            TestOnceReadShm();
+            TestReadShm(false);
             break;
         }
         usleep(5*1000);
     }
 }
 
+// work thread for read shm
+void TestWorkerThread(void)
+{
+    // 4 pthread, full load of CPU
+    const int THREAD_NUM = 4;    
+    vector<CThread*> threadVec;
+    for (int i = 0; i < THREAD_NUM; i++)
+    {        
+        CThread* p = new CThread(std::bind(TestReadShm, true));
+        threadVec.push_back(p);
+    }
+
+    // run thread for read shm
+    vector<CThread*>::iterator it;
+    for (it = threadVec.begin(); it != threadVec.end(); ++it)
+    {
+        if (NULL == *it)
+        {
+            continue;
+        }
+        (*it)->Start();
+    }
+}
+
 // test shm read TPS, while read shm, need other threads process shm, simulate full load of CPU
-void TestReadShmTPS()
+void TestReadShmTPS(void)
 {
     // confirm data record in shm
     const int QUERY_TIME = 20 * MILLION;
@@ -98,7 +135,7 @@ void TestReadShmTPS()
     char timeBuf[64];
 
     // other threads need to operate shm, simulate full load of CPU
-    // code not finish...
+    TestWorkerThread();
 
     printf("BenchMark QUERY_TIME=%s\n", ShowMagnitude(QUERY_TIME));
     GetCurrentTime(timeBuf, sizeof(timeBuf));

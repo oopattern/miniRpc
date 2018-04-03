@@ -313,7 +313,7 @@ unsigned int CShmHash::CalcHashKey(const void *key, int len)
 
 /* Return the number of digits of 'v' when converted to string in radix 10.
  * See ll2string() for more information. */
-uint32_t CShmHash::digits10(uint64_t v) 
+unsigned int CShmHash::digits10(unsigned long long v) 
 {
     if (v < 10) return 1;
     if (v < 100) return 2;
