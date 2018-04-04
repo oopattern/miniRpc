@@ -11,25 +11,29 @@ using namespace std;
 void TestReadShm(bool always)
 {
     int idx = 0;
-    int uid = 2301;
+    int uid = 0;
     ValType user;
     CShmHash shm;
     
-    printf("tid=%d doing TestReadShm\n", CThread::Tid());
+    printf("Work thread tid=%d doing TestReadShm\n", CThread::Tid());
 
     shm.AttachShm();
     do 
     {        
-        uid = uid + idx;
+        uid = 2301 + idx;
         if (++idx >= 100)
         {
             idx = 0;
         }
+
         if (SHM_OK != shm.ReadShm(uid, (char*)&user, sizeof(user)))
         {
             printf("shm read can not find uid=%d\n", uid);
             break;
         }
+        
+        //printf("running work thread tid=%d, uid=%d, money=%lld\n", CThread::Tid(), user.uid, user.money);
+        //sleep(1);
     } while (always);
     
     printf("shm read done\n");
@@ -105,10 +109,11 @@ void TestShmCapacity()
 void TestWorkerThread(void)
 {
     // 4 pthread, full load of CPU
-    const int THREAD_NUM = 4;    
+    const int THREAD_NUM = 3;    
     vector<CThread*> threadVec;
     for (int i = 0; i < THREAD_NUM; i++)
     {        
+        // true means always read shm
         CThread* p = new CThread(std::bind(TestReadShm, true));
         threadVec.push_back(p);
     }
@@ -129,10 +134,13 @@ void TestWorkerThread(void)
 void TestReadShmTPS(void)
 {
     // confirm data record in shm
-    const int QUERY_TIME = 20 * MILLION;
+    const int QUERY_TIME = 50 * MILLION;
     ValType user;
     CShmHash shm;
     char timeBuf[64];
+
+    printf("Main thread tid=%d\n", CThread::Tid());
+    shm.AttachShm();
 
     // other threads need to operate shm, simulate full load of CPU
     TestWorkerThread();
@@ -140,8 +148,6 @@ void TestReadShmTPS(void)
     printf("BenchMark QUERY_TIME=%s\n", ShowMagnitude(QUERY_TIME));
     GetCurrentTime(timeBuf, sizeof(timeBuf));
     printf("Query start time: %s\n", timeBuf);
-
-    shm.AttachShm();
 
     int cnt = 0;
     while (cnt < QUERY_TIME)
@@ -160,6 +166,12 @@ void TestReadShmTPS(void)
 
     printf("uid:%d, money:%lld\n", user.uid, user.money);
     printf("shm read done\n");
+
+    while (1)
+    {
+        printf("TestReadShmTPS finish, wait to Ctrl+C \n");
+        ::sleep(3);
+    }
 }
 
 int main(void)

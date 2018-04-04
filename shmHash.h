@@ -98,9 +98,10 @@ private:
     static const int SHM_OPT = IPC_CREAT | IPC_EXCL | SHM_USER_MODE; 
 
     // shm identify
-    int m_id; // inside id for shm
-    void* m_ptr; // share memory addr
     bool m_isLock; // shm lock status
+    static int m_id; // inside id for shm
+    static void* m_ptr; // share memory addr
+    static bool m_isAttach; // shm attach finish
     
     // hash prime table
     uint32_t m_totalBucket;

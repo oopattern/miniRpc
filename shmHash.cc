@@ -6,11 +6,16 @@
 #include <limits.h> // LONG_MAX
 #include <math.h>   // sqrt
 #include "shmHash.h"
+#include "thread.h"
 
 
 // hash function seed
 static uint32_t dict_hash_function_seed = 5381;
 
+// attach init is false, as process, only attach once
+bool CShmHash::m_isAttach = false;
+int CShmHash::m_id = 0;
+void* CShmHash::m_ptr = NULL;
 
 CShmHash::CShmHash()
 {
@@ -51,6 +56,12 @@ int CShmHash::CreateShm(unsigned int size)
 
 int CShmHash::AttachShm(void)
 {
+    if (true == m_isAttach)
+    {
+        printf("tid=%d, process already attach before\n", CThread::Tid());
+        return SHM_OK;
+    }
+
     m_id = ::shmget(SHM_KEY, 0, 0);
     if (m_id < 0)
     {
@@ -95,6 +106,7 @@ char* CShmHash::GetNode(int uid, unsigned int hashKey, bool bCreat)
     // mutli-order hash for add data or query data
     for (unsigned int i = 0; i < m_bucketSize; i++)
     {
+        // get slot position
         unsigned int slot = hashKey & m_bucket[i];
         dst = (char*)m_ptr + SHM_HEAD_SIZE + SHM_NODE_SIZE * (slot + primeBucketSize);
 
@@ -207,6 +219,9 @@ int CShmHash::AtShm(void)
         return SHM_ERROR;
     }
 
+    m_isAttach = true;
+    printf("tid=%d now attach shm\n", CThread::Tid());
+    
     return SHM_OK;
 }
 
