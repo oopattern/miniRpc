@@ -6,20 +6,28 @@
 
 using namespace std;
 
+// 4 pthread(include main pthread), full load of CPU
+const int THREAD_NUM = 3;    
+static double s_threadTime[THREAD_NUM] = {0};
+// query mangitude
+const long long QUERY_TIME = 50 * MILLION;
 
 // read shm
-void TestReadShm(bool always)
+// time > 0: loop times
+// time = 0: loop once
+// time < 0: loop forever
+void TestReadShm(int threadSeq, long long times)
 {
     int idx = 0;
     int uid = 0;
     ValType user;
     CShmHash shm;
     
-    printf("Work thread tid=%d doing TestReadShm\n", CThread::Tid());
+    long long st = TimeInMilliseconds();
 
-    shm.AttachShm();
+    shm.AttachShm();   
     do 
-    {        
+    {
         uid = 2301 + idx;
         if (++idx >= 100)
         {
@@ -32,11 +40,18 @@ void TestReadShm(bool always)
             break;
         }
         
-        //printf("running work thread tid=%d, uid=%d, money=%lld\n", CThread::Tid(), user.uid, user.money);
-        //sleep(1);
-    } while (always);
+        if (times > 0)
+        {
+            times--;
+        }
+    } while (times != 0);
     
-    printf("shm read done\n");
+    long long end = TimeInMilliseconds();
+    if (threadSeq < THREAD_NUM)
+    {
+        s_threadTime[threadSeq] = end - st;
+    }
+    printf("Work thread tid=%d use time=%lld(ms)\n", CThread::Tid(), end - st);
 }
 
 // always change shm data
@@ -98,7 +113,7 @@ void TestShmCapacity()
         else 
         {
             // after read record, end the test
-            TestReadShm(false);
+            TestReadShm(0, 0);
             break;
         }
         usleep(5*1000);
@@ -108,13 +123,11 @@ void TestShmCapacity()
 // work thread for read shm
 void TestWorkerThread(void)
 {
-    // 4 pthread, full load of CPU
-    const int THREAD_NUM = 3;    
     vector<CThread*> threadVec;
     for (int i = 0; i < THREAD_NUM; i++)
     {        
         // true means always read shm
-        CThread* p = new CThread(std::bind(TestReadShm, true));
+        CThread* p = new CThread(std::bind(TestReadShm, i, QUERY_TIME));
         threadVec.push_back(p);
     }
 
@@ -134,20 +147,21 @@ void TestWorkerThread(void)
 void TestReadShmTPS(void)
 {
     // confirm data record in shm
-    const int QUERY_TIME = 50 * MILLION;
     ValType user;
     CShmHash shm;
-    char timeBuf[64];
+    //char timeBuf[64];
+    //GetCurrentTime(timeBuf, sizeof(timeBuf));
+    //printf("Query start time: %s\n", timeBuf);
 
     printf("Main thread tid=%d\n", CThread::Tid());
+    printf("BenchMark QUERY_TIME=%s\n", ShowMagnitude(QUERY_TIME));
+
     shm.AttachShm();
 
     // other threads need to operate shm, simulate full load of CPU
     TestWorkerThread();
 
-    printf("BenchMark QUERY_TIME=%s\n", ShowMagnitude(QUERY_TIME));
-    GetCurrentTime(timeBuf, sizeof(timeBuf));
-    printf("Query start time: %s\n", timeBuf);
+    long long st = TimeInMilliseconds();
 
     int cnt = 0;
     while (cnt < QUERY_TIME)
@@ -161,16 +175,30 @@ void TestReadShmTPS(void)
         cnt++;
     }
 
-    GetCurrentTime(timeBuf, sizeof(timeBuf));
-    printf("Query   end time: %s\n", timeBuf);
+    long long end = TimeInMilliseconds();
+    printf("Main thread tid=%d use time=%lld(ms)\n", CThread::Tid(), end - st);
 
-    printf("uid:%d, money:%lld\n", user.uid, user.money);
-    printf("shm read done\n");
+    // wait pthread done, need something pthread sync
+    // code not finish...
+    // temporary use sleep to ensure work pthread finish the job
+    ::sleep(3);
+
+    // calc full load TPS
+    double allUseTime = end - st;    
+    for (int i = 0; i < THREAD_NUM; i++)
+    {
+        allUseTime = allUseTime + s_threadTime[i];
+    }
+    allUseTime = allUseTime / (THREAD_NUM + 1);
+    allUseTime = allUseTime / 1000.0;
+    long long tps = QUERY_TIME * (THREAD_NUM+1) / allUseTime;
+    printf("%d CPU full load, (all core)TPS=%s\n", THREAD_NUM + 1, ShowMagnitude(tps));
+    printf("%d CPU full load, (per core)TPS=%s\n", THREAD_NUM + 1, ShowMagnitude(tps/(THREAD_NUM+1)));
 
     while (1)
     {
         printf("TestReadShmTPS finish, wait to Ctrl+C \n");
-        ::sleep(3);
+        ::sleep(5);
     }
 }
 
