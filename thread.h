@@ -1,8 +1,27 @@
 #include <stdio.h>
 #include <functional> // c++11
 #include <pthread.h>
+#include <vector>
 
 typedef std::function<void ()> ThreadFunc;
+
+using namespace std;
+
+class CThread;
+
+class CThreadPool
+{
+public:
+    CThreadPool(int threadNum, const ThreadFunc& func);
+    ~CThreadPool();
+
+    int StartAll();
+    int JoinAll();
+
+private:
+    bool m_joined;
+    vector<CThread*> m_pool;
+};
 
 // compiler flag -std=c++11
 class CThread

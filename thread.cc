@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <assert.h>
 #include <sys/syscall.h>
 #include "thread.h"
 
@@ -78,3 +79,63 @@ pid_t CThread::Tid()
 {
     return ::gettid();
 }
+
+CThreadPool::CThreadPool(int threadNum, const ThreadFunc& func)
+{
+    m_joined = false;
+    m_pool.clear();
+
+    for (int i = 0; i < threadNum; i++)
+    {
+        // all new should be check error ?
+        // code not finish...
+        CThread* p = new(std::nothrow) CThread(func);
+        m_pool.push_back(p);
+    }
+}
+
+CThreadPool::~CThreadPool()
+{
+    // should be take care of resource
+    // code not finish...
+    assert(true == m_joined);
+
+    vector<CThread*>::iterator it;
+    for (it = m_pool.begin(); it != m_pool.end(); ++it)
+    {
+        if (NULL == *it)
+        {
+            continue;
+        }
+        delete *it;
+    }
+    m_pool.clear();
+}
+
+int CThreadPool::StartAll(void)
+{
+    vector<CThread*>::const_iterator it;
+    for (it = m_pool.cbegin(); it != m_pool.cend(); ++it)
+    {
+        if (NULL == *it)
+        {
+            continue;
+        }
+        (*it)->Start();
+    }
+}
+
+int CThreadPool::JoinAll(void)
+{
+    vector<CThread*>::const_iterator it;
+    for (it = m_pool.cbegin(); it != m_pool.cend(); ++it)
+    {
+        if (NULL == *it)
+        {
+            continue;
+        }
+        (*it)->Join();
+    }
+    m_joined = true;
+}
+

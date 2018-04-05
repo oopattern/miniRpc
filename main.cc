@@ -8,12 +8,13 @@ using namespace std;
 
 // 4 pthread(include main pthread), full load of CPU
 const int THREAD_NUM = 3;    
+static int s_threadIdx = 0;
 static double s_threadTime[THREAD_NUM] = {0};
 // query mangitude
 const long long QUERY_TIME = 50 * MILLION;
 
-static void TestReadShm(int threadSeq, long long times);
-static void TestModifyShm(int threadSeq, long long times);
+static void TestReadShm(long long times);
+static void TestModifyShm(long long times);
 static void TestAlwaysWriteShm(void);
 static void TestShmMutex(void);
 static void TestShmCapacity();
@@ -24,7 +25,7 @@ static void TestReadShmTPS(void);
 // time > 0: loop times
 // time = 0: loop once
 // time < 0: loop forever
-void TestReadShm(int threadSeq, long long times)
+void TestReadShm(long long times)
 {
     int idx = 0;
     int uid = 0;
@@ -55,14 +56,15 @@ void TestReadShm(int threadSeq, long long times)
     } while (times != 0);
     
     long long end = TimeInMilliseconds();
-    if (threadSeq < THREAD_NUM)
-    {
-        s_threadTime[threadSeq] = end - st;
-    }
+
+    // not safe, think how to put out the result to main thread
+    // because of s_threadIdx is not be automic
+    // code not finish...
+    s_threadTime[s_threadIdx++] = end - st;
     printf("Work thread tid=%d use time=%lld(ms)\n", CThread::Tid(), end - st);
 }
 
-void TestModifyShm(int threadSeq, long long times)
+void TestModifyShm(long long times)
 {
     int cnt = 0;
     CShmHash shm;
@@ -75,7 +77,7 @@ void TestModifyShm(int threadSeq, long long times)
         shm.ModifyShm(2333, 1);
         cnt++;
     }
-    printf("Work thread modify shm finish\n");
+    printf("Work thread tid=%d modify shm finish\n", CThread::Tid());
 }
 
 // always change shm data
@@ -120,13 +122,11 @@ void TestShmMutex(void)
     shm.WriteShm(uid, (char*)&user, sizeof(user), false);
 
     // work pthread modify user data, increase chgVal 
-    for (int i = 0; i < THREAD_NUM; i++)
-    {
-        TestWorkerThread(std::bind(TestModifyShm, i, QUERY_TIME));
-    }
+    CThreadPool pool(THREAD_NUM, std::bind(TestModifyShm, QUERY_TIME));
+    pool.StartAll();
 
     // wait for work pthread done
-    ::sleep(30);
+    pool.JoinAll();
     
     // main pthread read user data 
     shm.ReadShm(uid, (char*)&user, sizeof(user));
@@ -167,43 +167,11 @@ void TestShmCapacity()
         else 
         {
             // after read record, end the test
-            TestReadShm(0, 0);
+            TestReadShm(0);
             break;
         }
         usleep(5*1000);
     }
-}
-
-// work thread for read shm
-void TestWorkerThread(const ThreadFunc& cb)
-{
-    // where is delete? will due to memory leak?
-    // code not finish...
-    CThread* p = new CThread(cb);
-    if (p != NULL)
-    {
-        p->Start();
-    }
-
-    /*
-    vector<CThread*> threadVec;
-    for (int i = 0; i < threadNum; i++)
-    {        
-        // true means always read shm
-        CThread* p = new CThread(cb);
-        threadVec.push_back(p);
-    }
-
-    // run thread for read shm
-    vector<CThread*>::iterator it;
-    for (it = threadVec.begin(); it != threadVec.end(); ++it)
-    {
-        if (NULL == *it)
-        {
-            continue;
-        }
-        (*it)->Start();
-    }*/
 }
 
 // test shm read TPS, while read shm, need other threads process shm, simulate full load of CPU
@@ -219,17 +187,15 @@ void TestReadShmTPS(void)
     printf("Main thread tid=%d\n", CThread::Tid());
     printf("BenchMark QUERY_TIME=%s\n", ShowMagnitude(QUERY_TIME));
 
+    // other threads need to operate shm, simulate full load of CPU
+    CThreadPool pool(THREAD_NUM, std::bind(TestReadShm, QUERY_TIME));
+    pool.StartAll();
+
     shm.AttachShm();
 
-    // other threads need to operate shm, simulate full load of CPU
-    for (int i = 0; i < THREAD_NUM; i++)
-    {
-        TestWorkerThread(std::bind(TestReadShm, i, QUERY_TIME));
-    }
-
     long long st = TimeInMilliseconds();
-
     int cnt = 0;
+
     while (cnt < QUERY_TIME)
     {
         int uid = 2333 + cnt % 1;
@@ -245,9 +211,8 @@ void TestReadShmTPS(void)
     printf("Main thread tid=%d use time=%lld(ms)\n", CThread::Tid(), end - st);
 
     // wait pthread done, need something pthread sync
-    // code not finish...
     // temporary use sleep to ensure work pthread finish the job
-    ::sleep(3);
+    pool.JoinAll();
 
     // calc full load TPS
     double allUseTime = end - st;    
