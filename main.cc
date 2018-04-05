@@ -112,7 +112,6 @@ void TestShmMutex(void)
     int uid = 2333;
     CShmHash shm;
     ValType user;
-    long long WRITE_TIMES = MILLION;
 
     // main pthread clear user data to zero
     user.uid = uid;
