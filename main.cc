@@ -30,11 +30,10 @@ void TestReadShm(long long times)
     int idx = 0;
     int uid = 0;
     ValType user;
-    CShmHash shm;
     
     long long st = TimeInMilliseconds();
 
-    shm.AttachShm();   
+    g_pShmHash->AttachShm();   
     do 
     {
         uid = 2301 + idx;
@@ -43,7 +42,7 @@ void TestReadShm(long long times)
             idx = 0;
         }
 
-        if (SHM_OK != shm.ReadShm(uid, (char*)&user, sizeof(user)))
+        if (SHM_OK != g_pShmHash->ReadShm(uid, (char*)&user, sizeof(user)))
         {
             printf("shm read can not find uid=%d\n", uid);
             break;
@@ -67,14 +66,13 @@ void TestReadShm(long long times)
 void TestModifyShm(long long times)
 {
     int cnt = 0;
-    CShmHash shm;
     ValType user;
 
-    shm.AttachShm();
+    g_pShmHash->AttachShm();
     while (cnt < times)
     {
         // read and modify, different from ReadShm and WriteShm
-        shm.ModifyShm(2333, 1);
+        g_pShmHash->ModifyShm(2333, 1);
         cnt++;
     }
     printf("Work thread tid=%d modify shm finish\n", CThread::Tid());
@@ -85,11 +83,10 @@ void TestAlwaysWriteShm(void)
 {
     int testUid = 2333;    
     ValType user;
-    CShmHash shm;
     
     // first get user data
-    shm.AttachShm();
-    shm.ReadShm(testUid, (char*)&user, sizeof(user));
+    g_pShmHash->AttachShm();
+    g_pShmHash->ReadShm(testUid, (char*)&user, sizeof(user));
     while (1)
     {
         // increase user money
@@ -101,7 +98,7 @@ void TestAlwaysWriteShm(void)
         }
 
         // just change shm data, not insert shm data 
-        if (SHM_OK != shm.WriteShm(user.uid, (char*)&user, sizeof(user), false))
+        if (SHM_OK != g_pShmHash->WriteShm(user.uid, (char*)&user, sizeof(user), false))
         {
             printf("uid:%d, shm write error\n", user.uid);
         }
@@ -112,14 +109,13 @@ void TestAlwaysWriteShm(void)
 void TestShmMutex(void)
 {
     int uid = 2333;
-    CShmHash shm;
     ValType user;
 
     // main pthread clear user data to zero
     user.uid = uid;
     user.money = 0;
-    shm.AttachShm();
-    shm.WriteShm(uid, (char*)&user, sizeof(user), false);
+    g_pShmHash->AttachShm();
+    g_pShmHash->WriteShm(uid, (char*)&user, sizeof(user), false);
 
     // work pthread modify user data, increase chgVal 
     CThreadPool pool(THREAD_NUM, std::bind(TestModifyShm, QUERY_TIME));
@@ -129,7 +125,7 @@ void TestShmMutex(void)
     pool.JoinAll();
     
     // main pthread read user data 
-    shm.ReadShm(uid, (char*)&user, sizeof(user));
+    g_pShmHash->ReadShm(uid, (char*)&user, sizeof(user));
 
     printf("uid=%d, money=%lld, human money=%s\n", 
             user.uid, user.money, ShowMagnitude(user.money));
@@ -140,14 +136,13 @@ void TestShmMutex(void)
 void TestShmCapacity()
 {
     ValType user;
-    CShmHash shm;
 
     int i = 0;
     user.uid = 2300;
     user.money = 60000;
     snprintf(user.name, sizeof(user.name), "sakula");
 
-    if (shm.CreateShm() != SHM_OK)
+    if (g_pShmHash->CreateShm() != SHM_OK)
     {
         return;
     }
@@ -158,7 +153,7 @@ void TestShmCapacity()
         user.money += 2;
         
         // try to insert data into shm
-        if (SHM_OK == shm.WriteShm(user.uid, (char*)&user, sizeof(user), true))
+        if (SHM_OK == g_pShmHash->WriteShm(user.uid, (char*)&user, sizeof(user), true))
         {
             printf("uid:%d, money:%lld\n", user.uid, user.money);
             printf("shm write done\n");
@@ -179,10 +174,10 @@ void TestReadShmTPS(void)
 {
     // confirm data record in shm
     ValType user;
-    CShmHash shm;
-    //char timeBuf[64];
-    //GetCurrentTime(timeBuf, sizeof(timeBuf));
-    //printf("Query start time: %s\n", timeBuf);
+    char timeBuf[64];
+
+    GetCurrentTime(timeBuf, sizeof(timeBuf));
+    printf("Query start time: %s\n", timeBuf);
 
     printf("Main thread tid=%d\n", CThread::Tid());
     printf("BenchMark QUERY_TIME=%s\n", ShowMagnitude(QUERY_TIME));
@@ -191,7 +186,7 @@ void TestReadShmTPS(void)
     CThreadPool pool(THREAD_NUM, std::bind(TestReadShm, QUERY_TIME));
     pool.StartAll();
 
-    shm.AttachShm();
+    g_pShmHash->AttachShm();
 
     long long st = TimeInMilliseconds();
     int cnt = 0;
@@ -199,7 +194,7 @@ void TestReadShmTPS(void)
     while (cnt < QUERY_TIME)
     {
         int uid = 2333 + cnt % 1;
-        if (SHM_OK != shm.ReadShm(uid, (char*)&user, sizeof(user)))
+        if (SHM_OK != g_pShmHash->ReadShm(uid, (char*)&user, sizeof(user)))
         {
             printf("shm read can not find uid=%d\n", uid);    
             return;
@@ -226,6 +221,9 @@ void TestReadShmTPS(void)
     printf("%d CPU full load, (all core)TPS=%s\n", THREAD_NUM + 1, ShowMagnitude(tps));
     printf("%d CPU full load, (per core)TPS=%s\n", THREAD_NUM + 1, ShowMagnitude(tps/(THREAD_NUM+1)));
 
+    GetCurrentTime(timeBuf, sizeof(timeBuf));
+    printf("Query   end time: %s\n", timeBuf);
+
     while (1)
     {
         printf("TestReadShmTPS finish, wait to Ctrl+C \n");
@@ -237,8 +235,9 @@ int main(void)
 {
     printf("hello world\n");    
     //TestShmCapacity();
-    //TestReadShmTPS();
-    TestShmMutex();
+    TestReadShmTPS();
+    //TestShmMutex();
+    //TestReadShm(QUERY_TIME);
     printf("shm test finish.\n");
     return 0;
 }

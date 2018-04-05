@@ -7,14 +7,17 @@
 #include <pthread.h>// mutex, pthread
 #include <sys/shm.h>// shm
 
+// define global
+#define g_pShmHash      CShmHash::Instance()
+
 // shm macro
 #define SHM_USER_MODE   0777
 #define SHM_ERROR       -1
 #define SHM_OK          0
 
 // macro
-typedef int                 KeyType;
-typedef long long           money_t;
+typedef int             KeyType;
+typedef long long       money_t;
 
 #if 0
 // hash table
@@ -65,8 +68,8 @@ const unsigned long SHM_NODE_SIZE = sizeof(TShmNode);
 class CShmHash
 {
 public:
-    CShmHash();
-    ~CShmHash();
+    static CShmHash* Instance(void);
+
     int CreateShm(unsigned int size = SHM_SIZE);
     int AttachShm(void);
     int ModifyShm(int uid, int chgVal);
@@ -91,18 +94,25 @@ private:
     int ll2string(char* dst, size_t dstlen, long long svalue);
 
 private:
+    // singleton, can use template and pthread safe 
+    // code not finish
+    static CShmHash* m_pInstance;
+    CShmHash();
+    ~CShmHash();
+
+private:
     static const int SHM_KEY = 0x20180325; // unique shm key
     static const int SHM_SIZE = 1024 * 1024; // max shm size, 1Mb
     
     // if exsist will fault, pay attention to user mode, 
-    // otherwise will call permission deny
+    // otherwise delete shm will call permission deny
     static const int SHM_OPT = IPC_CREAT | IPC_EXCL | SHM_USER_MODE; 
 
     // shm identify
-    bool m_isLock; // shm lock status
-    static int m_id; // inside id for shm
-    static void* m_ptr; // share memory addr
-    static bool m_isAttach; // shm attach finish
+    int     m_id; // inside id for shm
+    void*   m_ptr; // share memory addr
+    bool    m_isLock; // shm lock status
+    bool    m_isAttach; // shm attach finish
     
     // hash prime table
     uint32_t m_totalBucket;

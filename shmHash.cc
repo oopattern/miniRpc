@@ -12,13 +12,25 @@
 // hash function seed
 static uint32_t dict_hash_function_seed = 5381;
 
-// attach init is false, as process, only attach once
-bool CShmHash::m_isAttach = false;
-int CShmHash::m_id = 0;
-void* CShmHash::m_ptr = NULL;
+// init singleton
+CShmHash* CShmHash::m_pInstance = NULL;
+
+CShmHash* CShmHash::Instance(void)
+{
+    if (NULL == m_pInstance)
+    {
+        m_pInstance = new CShmHash();
+    }
+    return m_pInstance;
+}
 
 CShmHash::CShmHash()
 {
+    m_id = -1;
+    m_ptr = NULL;
+    m_isLock = false;
+    m_isAttach = false;
+
     memset(m_bucket, 0x0, sizeof(m_bucket));
     m_totalBucket = 0;
     m_bucketSize = HASH_BUCKET_MAX_SIZE;
@@ -247,7 +259,7 @@ int CShmHash::AtShm(void)
     }
 
     m_isAttach = true;
-    printf("tid=%d now attach shm\n", CThread::Tid());
+    printf("tid=%d now attach shm=%p\n", CThread::Tid(), m_ptr);
     
     return SHM_OK;
 }
