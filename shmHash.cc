@@ -80,6 +80,8 @@ int CShmHash::PosixCreate(unsigned int size)
         return SHM_ERROR;
     }
 
+    // above if fail, will not close fd
+    // code not finish...
     ::close(m_id);
 
     return SHM_OK;
@@ -137,6 +139,8 @@ int CShmHash::PosixAttach(void)
         return SHM_ERROR;
     }
 
+    // above if fail, will not close fd
+    // code not finish...
     ::close(m_id);
     return SHM_OK;
 }
