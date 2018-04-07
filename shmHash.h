@@ -70,14 +70,28 @@ class CShmHash
 public:
     static CShmHash* Instance(void);
 
+    // create shm, use Posix mmap or SystemV shmget method, for shm server process
     int CreateShm(unsigned int size = SHM_SIZE);
+    // attach shm, for shm client process
     int AttachShm(void);
+    // uid: key
     int ModifyShm(int uid, int chgVal);
+    // uid: key, data: val
     int ReadShm(int uid, char* data, int len);
-    int WriteShm(int uid, const char* data, int len, bool bCreat); // bCreat: true mean add data, false mean change data
+    // bCreat: true mean add data, false mean change data
+    int WriteShm(int uid, const char* data, int len, bool bCreat); 
 
 private:
+    // SystemV method
     int AtShm(void);
+    int SystemVCreate(unsigned int size);
+    int SystemVAttach(void);
+
+    // Posix method
+    int PosixCreate(unsigned int size);
+    int PosixAttach(void);
+
+    // lock operation
     void LockShm(void);
     void UnlockShm(void);
     bool IsLockShm(void);
@@ -95,7 +109,7 @@ private:
 
 private:
     // singleton, can use template and pthread safe 
-    // code not finish
+    // code not finish...
     static CShmHash* m_pInstance;
     CShmHash();
     ~CShmHash();

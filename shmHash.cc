@@ -4,10 +4,16 @@
 #include <string.h> // memcpy
 #include <errno.h>  // errno
 #include <limits.h> // LONG_MAX
+#include <fcntl.h>  // open, O_RDWR
+#include <sys/mman.h>// mmap
+#include <sys/stat.h>// fstat
 #include <math.h>   // sqrt
 #include "shmHash.h"
 #include "thread.h"
 
+// Posix-mmap method, default shm way, compare with SystemV-shmget method
+#define USE_MMAP    0
+static const char* MMAP_NAME = "POSIX_MMAP";
 
 // hash function seed
 static uint32_t dict_hash_function_seed = 5381;
@@ -48,6 +54,50 @@ CShmHash::~CShmHash()
 
 }
 
+// shm create, Posix method
+int CShmHash::PosixCreate(unsigned int size)
+{
+    // if shm exsist failed
+    m_id = ::shm_open(MMAP_NAME, O_RDWR | O_CREAT | O_EXCL, SHM_USER_MODE);
+    if (m_id < 0)
+    {
+        printf("shm_open error:%s\n", strerror(errno));
+        return SHM_ERROR;
+    }
+
+    // fix size
+    if (::ftruncate(m_id, size) < 0)
+    {
+        printf("ftruncate error:%s\n", strerror(errno));
+        return SHM_ERROR;
+    }
+
+    // get shm addr
+    m_ptr = ::mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, m_id, 0);
+    if (MAP_FAILED == m_ptr)
+    {
+        printf("mmap error:%s\n", strerror(errno));
+        return SHM_ERROR;
+    }
+
+    ::close(m_id);
+
+    return SHM_OK;
+}
+
+// shm create, SystemV method
+int CShmHash::SystemVCreate(unsigned int size)
+{
+    m_id = ::shmget(SHM_KEY, size, SHM_OPT);
+    if (m_id < 0)
+    {
+        printf("shmget error:%s\n", strerror(errno));
+        return SHM_ERROR;
+    }
+    printf("create shmid=%d\n", m_id);
+    return AtShm();
+}
+
 int CShmHash::CreateShm(unsigned int size)
 {
     if (size < (SHM_HEAD_SIZE + m_totalBucket * SHM_NODE_SIZE))
@@ -56,13 +106,51 @@ int CShmHash::CreateShm(unsigned int size)
         return SHM_ERROR;
     }
 
-    m_id = ::shmget(SHM_KEY, size, SHM_OPT);
+#if (USE_MMAP)
+    return PosixCreate(size);
+#else
+    return SystemVCreate(size);
+#endif
+}
+
+// attach shm, Posix method
+int CShmHash::PosixAttach(void)
+{
+    struct stat shmStat;
+    m_id = ::shm_open(MMAP_NAME, O_RDWR, SHM_USER_MODE);
+    if (m_id < 0)
+    {
+        printf("shm_open error:%s\n", strerror(errno));
+        return SHM_ERROR;
+    }
+
+    if (::fstat(m_id, &shmStat) < 0)
+    {
+        printf("fstat error:%s\n", strerror(errno));
+        return SHM_ERROR;
+    }
+
+    m_ptr = ::mmap(NULL, shmStat.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, m_id, 0);
+    if (MAP_FAILED == m_ptr)
+    {
+        printf("mmap error:%s\n", strerror(errno));
+        return SHM_ERROR;
+    }
+
+    ::close(m_id);
+    return SHM_OK;
+}
+
+// attach shm, SystemV method
+int CShmHash::SystemVAttach(void)
+{
+    m_id = ::shmget(SHM_KEY, 0, 0);
     if (m_id < 0)
     {
         printf("shmget error:%s\n", strerror(errno));
         return SHM_ERROR;
     }
-    printf("create shmid=%d\n", m_id);
+    printf("attach shmid=%d\n", m_id);
     return AtShm();
 }
 
@@ -74,16 +162,12 @@ int CShmHash::AttachShm(void)
         return SHM_OK;
     }
 
-    m_id = ::shmget(SHM_KEY, 0, 0);
-    if (m_id < 0)
-    {
-        printf("shmget error:%s\n", strerror(errno));
-        return SHM_ERROR;
-    }
-    printf("attach shmid=%d\n", m_id);
-    return AtShm();
+#if (USE_MMAP)
+    return PosixAttach();
+#else
+    return SystemVAttach();
+#endif
 }
-
 
 void CShmHash::LockShm(void)
 {
