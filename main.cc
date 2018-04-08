@@ -163,6 +163,7 @@ void TestShmCapacity()
         {
             // after read record, end the test
             TestReadShm(0);
+            g_pShmHash->ShowShm();
             break;
         }
         usleep(5*1000);

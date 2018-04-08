@@ -38,6 +38,7 @@ CShmHash::CShmHash()
     m_isAttach = false;
 
     memset(m_bucket, 0x0, sizeof(m_bucket));
+    m_bucketUsed = 0;
     m_totalBucket = 0;
     m_bucketSize = HASH_BUCKET_MAX_SIZE;
     m_bucketInitPrime = HASH_INIT_PRIME;
@@ -52,6 +53,19 @@ CShmHash::CShmHash()
 CShmHash::~CShmHash()
 {
 
+}
+
+void CShmHash::ShowShm(void)
+{
+    printf("- - - - - - - - - - - - - - - HASH_STATUS_START - - - - - - - - - - - - - - - \n");
+    printf("hash total bucket: %d\n", m_totalBucket);
+    printf("hash  used bucket: %d\n", m_bucketUsed);
+    printf("hash      percent: %.2f%%\n", (double)m_bucketUsed*100.0/m_totalBucket);
+    for (int i = 0; i < HASH_BUCKET_MAX_SIZE; i++)
+    {
+        printf("hash bucket:%d prime:%d\n", i+1, m_bucket[i]);
+    }
+    printf("- - - - - - - - - - - - - - - HASH_STATUS_END - - - - - - - - - - - - - - - - \n");
 }
 
 // shm create, Posix method
@@ -207,7 +221,7 @@ char* CShmHash::GetNode(int uid, unsigned int hashKey, bool bCreat)
     for (unsigned int i = 0; i < m_bucketSize; i++)
     {
         // get slot position
-        unsigned int slot = hashKey & m_bucket[i];
+        unsigned int slot = hashKey % m_bucket[i];
         dst = (char*)m_ptr + SHM_HEAD_SIZE + SHM_NODE_SIZE * (slot + primeBucketSize);
 
         // add data
@@ -284,13 +298,18 @@ int CShmHash::WriteShm(int uid, const char* data, int len, bool bCreat)
     // bCreat: true as add data, false as change data
     char* dst = GetNode(uid, hashKey, bCreat);
     if (dst != NULL)
-    {
+    {        
         ((TShmNode*)dst)->bUsed = true;
         ((TShmNode*)dst)->expireTime = 0;
         ((TShmNode*)dst)->key = uid;
         
         char* pVal = (char*)&(((TShmNode*)dst)->val);
         memcpy(pVal, data, len);
+
+        if (true == bCreat)
+        {
+            m_bucketUsed++;
+        }
     }
 
     UnlockShm();

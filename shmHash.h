@@ -80,6 +80,8 @@ public:
     int ReadShm(int uid, char* data, int len);
     // bCreat: true mean add data, false mean change data
     int WriteShm(int uid, const char* data, int len, bool bCreat); 
+    // show shm status
+    void ShowShm(void);
 
 private:
     // SystemV method
@@ -129,6 +131,7 @@ private:
     bool    m_isAttach; // shm attach finish
     
     // hash prime table
+    uint32_t m_bucketUsed;
     uint32_t m_totalBucket;
     uint32_t m_bucket[HASH_BUCKET_MAX_SIZE];
     uint32_t m_bucketSize;
