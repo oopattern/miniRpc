@@ -12,7 +12,7 @@
 #include "thread.h"
 
 // Posix-mmap method, default shm way, compare with SystemV-shmget method
-#define USE_MMAP    0
+#define USE_MMAP    1
 static const char* MMAP_NAME = "POSIX_MMAP";
 
 // hash function seed
@@ -94,9 +94,17 @@ int CShmHash::PosixCreate(unsigned int size)
         return SHM_ERROR;
     }
 
+    // shm init lock, for process, just init once
+    if (SHM_OK != InitLock())
+    {
+        printf("PosixCreate initlock error\n");
+        return SHM_ERROR;
+    }
+
     // above if fail, will not close fd
     // code not finish...
     ::close(m_id);
+    m_isAttach = true;
 
     return SHM_OK;
 }
@@ -153,9 +161,19 @@ int CShmHash::PosixAttach(void)
         return SHM_ERROR;
     }
 
+    // shm init lock, for process, just init once
+    if (SHM_OK != InitLock())
+    {
+        printf("PosixAttach initlock error\n");
+        return SHM_ERROR;
+    }
+
     // above if fail, will not close fd
     // code not finish...
-    ::close(m_id);
+    ::close(m_id);    
+    m_isAttach = true;
+    printf("tid=%d now attach shm=%p\n", CThread::Tid(), m_ptr);
+
     return SHM_OK;
 }
 
@@ -185,6 +203,24 @@ int CShmHash::AttachShm(void)
 #else
     return SystemVAttach();
 #endif
+}
+
+int CShmHash::InitLock(void)
+{
+    if ((m_id < 0) || (NULL == m_ptr))
+    {
+        printf("InitLock error\n");
+        return SHM_ERROR;
+    }
+
+    TShmHead* p = (TShmHead*)m_ptr;
+    if (::pthread_mutex_init(&p->mutex, NULL) != 0)
+    {
+        printf("mutex init error:%s\n", strerror(errno));
+        return SHM_ERROR;
+    }
+
+    return SHM_OK;    
 }
 
 void CShmHash::LockShm(void)
@@ -358,10 +394,9 @@ int CShmHash::AtShm(void)
         return SHM_ERROR;
     }
     
-    TShmHead* p = (TShmHead*)m_ptr;
-    if (::pthread_mutex_init(&p->mutex, NULL) != 0)
+    if (SHM_OK != InitLock())
     {
-        printf("mutex init error:%s\n", strerror(errno));
+        printf("shmat InitLock error\n");
         return SHM_ERROR;
     }
 

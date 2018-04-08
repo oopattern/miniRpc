@@ -94,6 +94,7 @@ private:
     int PosixAttach(void);
 
     // lock operation
+    int InitLock(void);
     void LockShm(void);
     void UnlockShm(void);
     bool IsLockShm(void);
@@ -129,6 +130,7 @@ private:
     void*   m_ptr; // share memory addr
     bool    m_isLock; // shm lock status
     bool    m_isAttach; // shm attach finish
+    pthread_mutex_t m_attachMutex; // for the same process, only attach once
     
     // hash prime table
     uint32_t m_bucketUsed;

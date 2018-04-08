@@ -183,11 +183,15 @@ void TestReadShmTPS(void)
     printf("Main thread tid=%d\n", CThread::Tid());
     printf("BenchMark QUERY_TIME=%s\n", ShowMagnitude(QUERY_TIME));
 
+    // for the same process, attach only init once
+    // think of how to sync main pthread and work pthread, use condition-variable ???
+    // temporary just use sleep
+    g_pShmHash->AttachShm();
+    ::sleep(1);
+
     // other threads need to operate shm, simulate full load of CPU
     CThreadPool pool(THREAD_NUM, std::bind(TestReadShm, QUERY_TIME));
     pool.StartAll();
-
-    g_pShmHash->AttachShm();
 
     long long st = TimeInMilliseconds();
     int cnt = 0;
