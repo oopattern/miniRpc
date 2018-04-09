@@ -65,17 +65,25 @@ void TestReadShm(long long times)
 
 void TestModifyShm(long long times)
 {
+    int uid = 2333;
     int cnt = 0;
     ValType user;
+
+    long long st = TimeInMilliseconds();
 
     g_pShmHash->AttachShm();
     while (cnt < times)
     {
         // read and modify, different from ReadShm and WriteShm
-        g_pShmHash->ModifyShm(2333, 1);
+        g_pShmHash->ModifyShm(uid, 1);
         cnt++;
     }
-    printf("Work thread tid=%d modify shm finish\n", CThread::Tid());
+
+    long long end = TimeInMilliseconds();
+    printf("tid=%d use time=%lld(ms)\n", CThread::Tid(), end - st);
+
+    g_pShmHash->ReadShm(uid, (char*)&user, sizeof(user));
+    printf("Work thread tid=%d, uid=%d, money=%lld, modify shm finish\n", CThread::Tid(), user.uid, user.money);
 }
 
 // always change shm data
@@ -111,23 +119,32 @@ void TestShmMutex(void)
     int uid = 2333;
     ValType user;
 
+    // first attach shm
+    g_pShmHash->AttachShm();
+
+    // main pthread read user data 
+    g_pShmHash->ReadShm(uid, (char*)&user, sizeof(user));
+    printf("origin : uid=%d, money=%lld, human money=%s\n", 
+            user.uid, user.money, ShowMagnitude(user.money));
+
     // main pthread clear user data to zero
     user.uid = uid;
     user.money = 0;
-    g_pShmHash->AttachShm();
     g_pShmHash->WriteShm(uid, (char*)&user, sizeof(user), false);
 
+#if 0    
     // work pthread modify user data, increase chgVal 
     CThreadPool pool(THREAD_NUM, std::bind(TestModifyShm, QUERY_TIME));
     pool.StartAll();
 
     // wait for work pthread done
     pool.JoinAll();
+#endif
     
     // main pthread read user data 
     g_pShmHash->ReadShm(uid, (char*)&user, sizeof(user));
 
-    printf("uid=%d, money=%lld, human money=%s\n", 
+    printf("finally: uid=%d, money=%lld, human money=%s\n", 
             user.uid, user.money, ShowMagnitude(user.money));
     printf("TestShmMutex finish\n");
 }
@@ -240,9 +257,10 @@ int main(void)
 {
     printf("hello world\n");    
     //TestShmCapacity();
-    TestReadShmTPS();
-    //TestShmMutex();
+    //TestReadShmTPS();
     //TestReadShm(QUERY_TIME);
+    //TestShmMutex();
+    TestModifyShm(QUERY_TIME);
     printf("shm test finish.\n");
     return 0;
 }

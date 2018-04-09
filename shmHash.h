@@ -48,8 +48,9 @@ typedef struct _tShmNode
 
 // shm head info, mutex must be in shm head, for mutli process sync
 typedef struct _tShmHead
-{
-    pthread_mutex_t mutex;
+{    
+    pthread_mutex_t     mutex;
+    pthread_mutexattr_t attr;
 } TShmHead;
 
 // macro
@@ -130,7 +131,6 @@ private:
     void*   m_ptr; // share memory addr
     bool    m_isLock; // shm lock status
     bool    m_isAttach; // shm attach finish
-    pthread_mutex_t m_attachMutex; // for the same process, only attach once
     
     // hash prime table
     uint32_t m_bucketUsed;

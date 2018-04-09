@@ -213,8 +213,25 @@ int CShmHash::InitLock(void)
         return SHM_ERROR;
     }
 
+    // mutex and mutex_attr should be in shm
     TShmHead* p = (TShmHead*)m_ptr;
-    if (::pthread_mutex_init(&p->mutex, NULL) != 0)
+
+    // init pthread_mutexattr
+    if (0 != ::pthread_mutexattr_init(&p->attr))
+    {
+        printf("mutex_attr init error:%s\n", strerror(errno));
+        return SHM_ERROR;
+    }
+
+    // set process share attribute
+    if (0 != ::pthread_mutexattr_setpshared(&p->attr, PTHREAD_PROCESS_SHARED))
+    {
+        printf("pthread_mutexattr_setshared error:%s\n", strerror(errno));
+        return SHM_ERROR;
+    }
+
+    // init pthread mutex with mutex_attr
+    if (0 != ::pthread_mutex_init(&p->mutex, &p->attr))
     {
         printf("mutex init error:%s\n", strerror(errno));
         return SHM_ERROR;
