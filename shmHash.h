@@ -42,6 +42,7 @@ typedef struct _tShmNode
 {
     bool    bUsed; // true: already used
     int     expireTime; // expire time arrived, delete the data
+    int     readAtomic; // atomic operation
     KeyType key;
     ValType val;
 } TShmNode;
@@ -51,6 +52,7 @@ typedef struct _tShmHead
 {    
     pthread_mutex_t     mutex;
     pthread_mutexattr_t attr;
+    int                 accessAtomic; // atomic operation
 } TShmHead;
 
 // macro
@@ -99,6 +101,8 @@ private:
     void LockShm(void);
     void UnlockShm(void);
     bool IsLockShm(void);
+    int AtomicLockNode(TShmNode* p);
+    void AtomicUnlockNode(TShmNode* p);
 
     // hash operation
     char* GetNode(int uid, unsigned int hashKey, bool bCreat);

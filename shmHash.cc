@@ -13,6 +13,9 @@
 
 // Posix-mmap method, default shm way, compare with SystemV-shmget method
 #define USE_MMAP    1
+#define USE_LOCK    0
+
+static const int ATOMIC_COUNT = 2;
 static const char* MMAP_NAME = "POSIX_MMAP";
 
 // hash function seed
@@ -207,6 +210,9 @@ int CShmHash::AttachShm(void)
 
 int CShmHash::InitLock(void)
 {
+#if (USE_LOCK)
+    printf("InitLock use mutex...\n");
+
     if ((m_id < 0) || (NULL == m_ptr))
     {
         printf("InitLock error\n");
@@ -237,26 +243,61 @@ int CShmHash::InitLock(void)
         return SHM_ERROR;
     }
 
-    return SHM_OK;    
+    return SHM_OK;
+#else
+    printf("InitLock use atomic...\n");
+    return SHM_OK;
+#endif    
 }
 
 void CShmHash::LockShm(void)
 {
+#if (USE_LOCK)    
     TShmHead* p = (TShmHead*)m_ptr;
     ::pthread_mutex_lock(&p->mutex);
     m_isLock = true; // order can not be wrong!
+#else 
+    // access hash table
+    TShmHead* p = (TShmHead*)m_ptr;
+    while (0 != (::__atomic_fetch_add(&p->accessAtomic, ATOMIC_COUNT, __ATOMIC_ACQUIRE) % 2))
+    {
+        ::__atomic_fetch_sub(&p->accessAtomic, ATOMIC_COUNT, __ATOMIC_RELEASE);
+    }
+    m_isLock = true;
+#endif    
 }
 
 void CShmHash::UnlockShm(void)
 {
+#if (USE_LOCK)    
     m_isLock = false; // order can not be wrong!
     TShmHead* p = (TShmHead*)m_ptr;
     ::pthread_mutex_unlock(&p->mutex);
+#else
+    m_isLock = false;
+    TShmHead* p = (TShmHead*)m_ptr;
+    ::__atomic_fetch_sub(&p->accessAtomic, ATOMIC_COUNT, __ATOMIC_RELEASE);
+#endif
 }
 
 bool CShmHash::IsLockShm(void)
 {
+#if (USE_LOCK)    
     return m_isLock;
+#else
+    return true;
+#endif    
+}
+
+// just use for atomic way
+int CShmHash::AtomicLockNode(TShmNode* p)
+{
+    return (::__atomic_fetch_add(&p->readAtomic, ATOMIC_COUNT, __ATOMIC_ACQUIRE) % 2);    
+}
+
+void CShmHash::AtomicUnlockNode(TShmNode* p)
+{
+    ::__atomic_fetch_sub(&p->readAtomic, ATOMIC_COUNT, __ATOMIC_RELEASE);    
 }
 
 // add   data: bCreat = true
@@ -276,25 +317,32 @@ char* CShmHash::GetNode(int uid, unsigned int hashKey, bool bCreat)
         // get slot position
         unsigned int slot = hashKey % m_bucket[i];
         dst = (char*)m_ptr + SHM_HEAD_SIZE + SHM_NODE_SIZE * (slot + primeBucketSize);
+        
+        int retVal = AtomicLockNode((TShmNode*)dst);
 
         // add data
-        if ((true == bCreat) 
+        if ((0 == retVal) 
+            && (true == bCreat) 
             && (false == ((TShmNode*)dst)->bUsed))
         {
             printf("insert data success slot=%d, bucket=%d, bucketSize=%d\n", 
                     slot, i+1, m_bucket[i]);
+            AtomicUnlockNode((TShmNode*)dst);
             return dst;
         }
         // query data
-        else if ((false == bCreat) 
+        else if ((0 == retVal)
+                && (false == bCreat) 
                 && (true == ((TShmNode*)dst)->bUsed) 
                 && (uid == ((TShmNode*)dst)->key)) 
         {
+            AtomicUnlockNode((TShmNode*)dst);
             return dst;
         }
 
         // next prime bucket
         primeBucketSize = primeBucketSize + m_bucket[i];
+        AtomicUnlockNode((TShmNode*)dst);
     }
 
     printf("uid:%d bCreat:%d GetNode error\n", uid, bCreat);
