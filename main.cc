@@ -7,9 +7,9 @@
 using namespace std;
 
 // 4 pthread(include main pthread), full load of CPU
-const int THREAD_NUM = 3;    
+const int THREAD_NUM = 0;    
 static int s_threadIdx = 0;
-static double s_threadTime[THREAD_NUM] = {0};
+static double s_threadTime[THREAD_NUM+1] = {0};
 // query mangitude
 const long long QUERY_TIME = 50 * MILLION;
 
@@ -126,20 +126,18 @@ void TestShmMutex(void)
     g_pShmHash->ReadShm(uid, (char*)&user, sizeof(user));
     printf("origin : uid=%d, money=%lld, human money=%s\n", 
             user.uid, user.money, ShowMagnitude(user.money));
-
+    
     // main pthread clear user data to zero
     user.uid = uid;
     user.money = 0;
     g_pShmHash->WriteShm(uid, (char*)&user, sizeof(user), false);
 
-#if 0    
     // work pthread modify user data, increase chgVal 
     CThreadPool pool(THREAD_NUM, std::bind(TestModifyShm, QUERY_TIME));
     pool.StartAll();
 
     // wait for work pthread done
     pool.JoinAll();
-#endif
     
     // main pthread read user data 
     g_pShmHash->ReadShm(uid, (char*)&user, sizeof(user));

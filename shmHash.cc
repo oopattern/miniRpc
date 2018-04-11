@@ -97,6 +97,9 @@ int CShmHash::PosixCreate(unsigned int size)
         return SHM_ERROR;
     }
 
+    // clear zero of the region
+    memset(m_ptr, 0x0, size);
+
     // shm init lock, for process, just init once
     if (SHM_OK != InitLock())
     {
@@ -290,14 +293,20 @@ bool CShmHash::IsLockShm(void)
 }
 
 // just use for atomic way
-int CShmHash::AtomicLockNode(TShmNode* p)
+void CShmHash::AtomicLockNode(TShmNode* p)
 {
-    return (::__atomic_fetch_add(&p->readAtomic, ATOMIC_COUNT, __ATOMIC_ACQUIRE) % 2);    
+#if (! USE_LOCK)    
+    // replace_val: -1
+    // expected_val: 0
+    while (! ::__sync_bool_compare_and_swap(&p->readAtomic, 0, -1));
+#endif    
 }
 
 void CShmHash::AtomicUnlockNode(TShmNode* p)
 {
-    ::__atomic_fetch_sub(&p->readAtomic, ATOMIC_COUNT, __ATOMIC_RELEASE);    
+#if (! USE_LOCK)    
+    ::__atomic_fetch_add(&p->readAtomic, 1, __ATOMIC_RELEASE);
+#endif
 }
 
 // add   data: bCreat = true
@@ -318,31 +327,24 @@ char* CShmHash::GetNode(int uid, unsigned int hashKey, bool bCreat)
         unsigned int slot = hashKey % m_bucket[i];
         dst = (char*)m_ptr + SHM_HEAD_SIZE + SHM_NODE_SIZE * (slot + primeBucketSize);
         
-        int retVal = AtomicLockNode((TShmNode*)dst);
-
         // add data
-        if ((0 == retVal) 
-            && (true == bCreat) 
+        if ((true == bCreat) 
             && (false == ((TShmNode*)dst)->bUsed))
         {
             printf("insert data success slot=%d, bucket=%d, bucketSize=%d\n", 
                     slot, i+1, m_bucket[i]);
-            AtomicUnlockNode((TShmNode*)dst);
             return dst;
         }
         // query data
-        else if ((0 == retVal)
-                && (false == bCreat) 
+        else if ((false == bCreat) 
                 && (true == ((TShmNode*)dst)->bUsed) 
                 && (uid == ((TShmNode*)dst)->key)) 
         {
-            AtomicUnlockNode((TShmNode*)dst);
             return dst;
         }
 
         // next prime bucket
         primeBucketSize = primeBucketSize + m_bucket[i];
-        AtomicUnlockNode((TShmNode*)dst);
     }
 
     printf("uid:%d bCreat:%d GetNode error\n", uid, bCreat);
@@ -373,6 +375,11 @@ int CShmHash::ReadShm(int uid, char* data, int len)
         char* pVal = (char*)&(((TShmNode*)dst)->val);
         memcpy(data, pVal, len);
     }
+    else
+    {
+        printf("ReadShm occur error\n");
+        exit(-1);
+    }
 
     UnlockShm();
 
@@ -400,6 +407,9 @@ int CShmHash::WriteShm(int uid, const char* data, int len, bool bCreat)
     char* dst = GetNode(uid, hashKey, bCreat);
     if (dst != NULL)
     {        
+        // protect access shm node
+        AtomicLockNode((TShmNode*)dst);
+
         ((TShmNode*)dst)->bUsed = true;
         ((TShmNode*)dst)->expireTime = 0;
         ((TShmNode*)dst)->key = uid;
@@ -411,6 +421,14 @@ int CShmHash::WriteShm(int uid, const char* data, int len, bool bCreat)
         {
             m_bucketUsed++;
         }
+
+        // release access shm node
+        AtomicUnlockNode((TShmNode*)dst);
+    }
+    else
+    {
+        printf("WriteShm occur error\n");
+        exit(-1);
     }
 
     UnlockShm();
@@ -434,10 +452,21 @@ int CShmHash::ModifyShm(int uid, int chgVal)
     char* dst = GetNode(uid, hashKey, false);
     if (dst != NULL)
     {
+        // protect access shm node
+        AtomicLockNode((TShmNode*)dst);
+
         ((TShmNode*)dst)->bUsed = true;
         ((TShmNode*)dst)->expireTime = 0;
         ((TShmNode*)dst)->key = uid;
         ((TShmNode*)dst)->val.money += chgVal;
+
+        // release access shm node
+        AtomicUnlockNode((TShmNode*)dst);
+    }
+    else
+    {
+        printf("Modify occur error\n");
+        exit(-1);
     }
 
     UnlockShm();

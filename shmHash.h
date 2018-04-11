@@ -101,7 +101,7 @@ private:
     void LockShm(void);
     void UnlockShm(void);
     bool IsLockShm(void);
-    int AtomicLockNode(TShmNode* p);
+    void AtomicLockNode(TShmNode* p);
     void AtomicUnlockNode(TShmNode* p);
 
     // hash operation
