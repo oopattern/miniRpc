@@ -13,9 +13,13 @@
 
 // Posix-mmap method, default shm way, compare with SystemV-shmget method
 #define USE_MMAP    1
+// read-write concurrent sync way, default atomic, compare with mutex lock
+// for mutli-thread in a process, atomic may be the best way, TPS will be much higher
+// for mutli-process, mutex or atomic may be little difference
 #define USE_LOCK    0
 
 static const int ATOMIC_COUNT = 2;
+static const long long ATOMIC_TRY_LIMIT = 200000000L;
 static const char* MMAP_NAME = "POSIX_MMAP";
 
 // hash function seed
@@ -263,8 +267,9 @@ void CShmHash::LockShm(void)
     // access hash table
     TShmHead* p = (TShmHead*)m_ptr;
     while (0 != (::__atomic_fetch_add(&p->accessAtomic, ATOMIC_COUNT, __ATOMIC_ACQUIRE) % 2))
-    {
+    {        
         ::__atomic_fetch_sub(&p->accessAtomic, ATOMIC_COUNT, __ATOMIC_RELEASE);
+        printf("lock shm dead?\n");
     }
     m_isLock = true;
 #endif    
@@ -296,9 +301,23 @@ bool CShmHash::IsLockShm(void)
 void CShmHash::AtomicLockNode(TShmNode* p)
 {
 #if (! USE_LOCK)    
+    long long tmp = 0;
+
     // replace_val: -1
     // expected_val: 0
-    while (! ::__sync_bool_compare_and_swap(&p->readAtomic, 0, -1));
+    while (! ::__sync_bool_compare_and_swap(&p->readAtomic, 0, -1))
+    {
+        tmp++;
+        // if pthread atomic coredump suddenly, shm atomic var will not change
+        // so we should check out by ourself, or will turn to be dead cycle...
+        if (tmp >= ATOMIC_TRY_LIMIT)
+        {
+            // why readAtomic should be set to -1, not other value ?
+            ::__sync_lock_test_and_set(&p->readAtomic, -1);
+            printf("tid=%d, AtomicLockNode shm dead?\n", CThread::Tid());
+            break;
+        }        
+    }
 #endif    
 }
 
@@ -410,6 +429,12 @@ int CShmHash::WriteShm(int uid, const char* data, int len, bool bCreat)
         // protect access shm node
         AtomicLockNode((TShmNode*)dst);
 
+        // take care !!!
+        // between AtomicLockNode and AtomicUnlockNode, if occur abort,
+        // other thread or process will turn to be dead lock
+        // because atomic var in shm release abnormal
+        // need think about how to solve this problem ?
+
         ((TShmNode*)dst)->bUsed = true;
         ((TShmNode*)dst)->expireTime = 0;
         ((TShmNode*)dst)->key = uid;
@@ -436,6 +461,57 @@ int CShmHash::WriteShm(int uid, const char* data, int len, bool bCreat)
     return ((dst != NULL) ? SHM_OK : SHM_ERROR);
 }
 
+// just for test !!! absolutely can not use !!!
+int CShmHash::AbortShm(int uid, int chgVal, int target)
+{
+    static int s_init = 0;
+
+    if (m_id < 0)
+    {
+        return SHM_ERROR;
+    }
+
+    char key[32];
+    int keylen = ll2string(key, 32, uid);
+    unsigned int hashKey = CalcHashKey(key, keylen);
+
+    LockShm();
+
+    char* dst = GetNode(uid, hashKey, false);
+    if (dst != NULL)
+    {
+        // protect access shm node
+        AtomicLockNode((TShmNode*)dst);
+
+        ((TShmNode*)dst)->bUsed = true;
+        ((TShmNode*)dst)->expireTime = 0;
+        ((TShmNode*)dst)->key = uid;
+        ((TShmNode*)dst)->val.money += chgVal;
+
+        // simulate abort situation
+        // can not use ::exit()/::abort(), because will terminate all thread within process
+        s_init++;
+        if (s_init >= target)
+        {
+            printf("tid=%d ready to occur abort, check if dead lock\n", CThread::Tid());
+            ::pthread_exit(NULL);
+            return SHM_ERROR;
+        }
+
+        // release access shm node
+        AtomicUnlockNode((TShmNode*)dst);
+    }
+    else
+    {
+        printf("Modify occur error\n");
+        exit(-1);
+    }
+
+    UnlockShm();
+
+    return ((dst != NULL) ? SHM_OK : SHM_ERROR);
+}
+
 int CShmHash::ModifyShm(int uid, int chgVal)
 {
     if (m_id < 0)
@@ -454,6 +530,12 @@ int CShmHash::ModifyShm(int uid, int chgVal)
     {
         // protect access shm node
         AtomicLockNode((TShmNode*)dst);
+
+        // take care !!!
+        // between AtomicLockNode and AtomicUnlockNode, if occur abort,
+        // other thread or process will turn to be dead lock
+        // because atomic var in shm release abnormal
+        // need think about how to solve this problem ?
 
         ((TShmNode*)dst)->bUsed = true;
         ((TShmNode*)dst)->expireTime = 0;

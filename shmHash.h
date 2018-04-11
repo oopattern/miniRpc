@@ -86,6 +86,10 @@ public:
     // show shm status
     void ShowShm(void);
 
+    // check out if pthread occur coredump, will happen dead lock?
+    // just for test !!! absolutely can not use !!!
+    int AbortShm(int uid, int chgVal, int target);
+
 private:
     // SystemV method
     int AtShm(void);

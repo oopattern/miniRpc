@@ -20,7 +20,7 @@ static unsigned long s_digit_tbl[] = {
 const int DIGIT_SIZE = sizeof(s_digit_tbl) / sizeof(s_digit_tbl[0]);
 
 // simple unsigned int to string, more slowly than redis method
-int Uint2String(char* dst, size_t dstlen, unsigned int value)
+int CUtils::Uint2String(char* dst, size_t dstlen, unsigned int value)
 {
     int i = 0;
     unsigned int cnum = 0;
@@ -65,7 +65,7 @@ int Uint2String(char* dst, size_t dstlen, unsigned int value)
 }
 
 // unix time with misec
-long long TimeInMilliseconds(void) 
+long long CUtils::TimeInMilliseconds(void) 
 {
     struct timeval tv;
     gettimeofday(&tv,NULL);
@@ -73,7 +73,7 @@ long long TimeInMilliseconds(void)
 }
 
 // current time with "yy-mm-dd hh:mm::ss msec.usec"
-void GetCurrentTime(char* timeStr, int timeLen)
+void CUtils::GetCurrentTime(char* timeStr, int timeLen)
 {
 	struct timeval tv;
 	struct tm tm;
@@ -90,7 +90,7 @@ void GetCurrentTime(char* timeStr, int timeLen)
 }
 
 // show magnitude
-char* ShowMagnitude(unsigned long val)
+char* CUtils::ShowMagnitude(unsigned long val)
 {
     double fp = 0.0;   
     static char buf[64];
