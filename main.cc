@@ -28,6 +28,7 @@ void TestThreadAbort(void)
 {
     int uid = 2333;
     ValType user;
+    int cnt = 0;
 
     // first attach shm
     g_pShmHash->AttachShm();
@@ -44,15 +45,23 @@ void TestThreadAbort(void)
 
     ::sleep(1);
     
-    // work pthread modify user data, increase chgVal 
-    CThreadPool normal(THREAD_NUM-1, std::bind(TestModifyShm, QUERY_TIME));
+    // normal work pthread, modify user data, increase chgVal 
+    //CThreadPool normal(THREAD_NUM-1, std::bind(TestModifyShm, QUERY_TIME));
+    // abort work pthread, simulate abort when locking shm 
     CThreadPool dead(1, std::bind(TestAbortShm, QUERY_TIME));
 
-    normal.StartAll();
+    //normal.StartAll();
     dead.StartAll();
 
+    while (cnt < QUERY_TIME)
+    {
+        // read and modify, different from ReadShm and WriteShm
+        g_pShmHash->ModifyShm(uid, 1);
+        cnt++;
+    }
+
     // wait for work pthread done
-    normal.JoinAll();
+    //normal.JoinAll();
     dead.JoinAll();
     
     // main pthread read user data 
@@ -117,7 +126,7 @@ void TestAbortShm(long long times)
     while (cnt < times)
     {
         // pthread will abort when operation reach times/3
-        g_pShmHash->AbortShm(uid, 1, times / 3);
+        g_pShmHash->AbortShm(uid, 1, times / 2);
         cnt++;
     }
 
@@ -156,6 +165,7 @@ void TestShmMutex(int threadNum, long long times)
 {
     int uid = 2333;
     ValType user;
+    int cnt = 0;
 
     // first attach shm
     g_pShmHash->AttachShm();
@@ -173,6 +183,13 @@ void TestShmMutex(int threadNum, long long times)
     // work pthread modify user data, increase chgVal 
     CThreadPool pool(threadNum, std::bind(TestModifyShm, times));
     pool.StartAll();
+
+    while (cnt < times)
+    {
+        // read and modify, different from ReadShm and WriteShm
+        g_pShmHash->ModifyShm(uid, 1);
+        cnt++;
+    }
 
     // wait for work pthread done
     pool.JoinAll();
@@ -299,6 +316,7 @@ int main(void)
     //TestShmMutex(THREAD_NUM, QUERY_TIME);
     //TestModifyShm(QUERY_TIME);
     TestThreadAbort();
+    //TestAbortShm(QUERY_TIME);
     printf("shm test finish.\n");
     return 0;
 }

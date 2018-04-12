@@ -16,7 +16,7 @@
 // read-write concurrent sync way, default atomic, compare with mutex lock
 // for mutli-thread in a process, atomic may be the best way, TPS will be much higher
 // for mutli-process, mutex or atomic may be little difference
-#define USE_LOCK    0
+#define USE_LOCK    1
 
 static const int ATOMIC_COUNT = 2;
 static const long long ATOMIC_TRY_LIMIT = 200000000L;
@@ -236,10 +236,18 @@ int CShmHash::InitLock(void)
         return SHM_ERROR;
     }
 
-    // set process share attribute
+    // set process share attribute, so mutile-process can sync 
     if (0 != ::pthread_mutexattr_setpshared(&p->attr, PTHREAD_PROCESS_SHARED))
     {
         printf("pthread_mutexattr_setshared error:%s\n", strerror(errno));
+        return SHM_ERROR;
+    }
+
+    // set mutex robust attribute, if pthread coredump during locking, 
+    // other pthread can recover mutex, otherwise other process/thread will be dead lock
+    if (0 != ::pthread_mutexattr_setrobust(&p->attr, PTHREAD_MUTEX_ROBUST))
+    {
+        printf("pthread_mutexattr_setrobust error:%s\n", strerror(errno));
         return SHM_ERROR;
     }
 
@@ -260,8 +268,13 @@ int CShmHash::InitLock(void)
 void CShmHash::LockShm(void)
 {
 #if (USE_LOCK)    
-    TShmHead* p = (TShmHead*)m_ptr;
-    ::pthread_mutex_lock(&p->mutex);
+    TShmHead* p = (TShmHead*)m_ptr;   
+    int ret = ::pthread_mutex_lock(&p->mutex);
+    if (EOWNERDEAD == ret)
+    {        
+        ::pthread_mutex_consistent(&p->mutex);
+        printf("[Fatal Error] pthread coredump when locking, try to release the mutex lock\n");
+    }
     m_isLock = true; // order can not be wrong!
 #else 
     // access hash table
@@ -314,7 +327,7 @@ void CShmHash::AtomicLockNode(TShmNode* p)
         {
             // why readAtomic should be set to -1, not other value ?
             ::__sync_lock_test_and_set(&p->readAtomic, -1);
-            printf("tid=%d, AtomicLockNode shm dead?\n", CThread::Tid());
+            printf("[Fatal Error] tid=%d AtomicLockNode shm dead, try to release atomic\n", CThread::Tid());
             break;
         }        
     }
