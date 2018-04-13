@@ -46,11 +46,11 @@ void TestThreadAbort(void)
     ::sleep(1);
     
     // normal work pthread, modify user data, increase chgVal 
-    //CThreadPool normal(THREAD_NUM-1, std::bind(TestModifyShm, QUERY_TIME));
+    CThreadPool normal(THREAD_NUM-1, std::bind(TestModifyShm, QUERY_TIME));
     // abort work pthread, simulate abort when locking shm 
     CThreadPool dead(1, std::bind(TestAbortShm, QUERY_TIME));
 
-    //normal.StartAll();
+    normal.StartAll();
     dead.StartAll();
 
     while (cnt < QUERY_TIME)
@@ -61,7 +61,7 @@ void TestThreadAbort(void)
     }
 
     // wait for work pthread done
-    //normal.JoinAll();
+    normal.JoinAll();
     dead.JoinAll();
     
     // main pthread read user data 
@@ -309,6 +309,8 @@ void TestReadShmTPS(void)
 int main(void)
 {
     printf("hello world\n");    
+    printf("_POSIX_THREADS=%ld\n", _POSIX_THREADS);
+    printf("_POSIX_C_SOURCE=%ld\n", _POSIX_C_SOURCE);
     //TestShmCapacity();
     //TestReadShmTPS();
     //TestReadShm(QUERY_TIME);
