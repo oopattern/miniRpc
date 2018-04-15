@@ -2,7 +2,11 @@
 #define __PUBLIC_H
 
 #include <stdio.h>
+#include <string>
+#include <vector>
 
+using std::string;
+using std::vector;
 
 // magnitude
 const unsigned long MILLION = 1000000UL;
@@ -16,6 +20,7 @@ public:
     static int Uint2String(char* dst, size_t dstlen, unsigned int value);
     static long long TimeInMilliseconds(void);
     static void GetCurrentTime(char* timeStr, int timeLen);
+    static int SplitStr(const char* src, char* mark, std::vector<std::string>& vecRet);
 };
 
 

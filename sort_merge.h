@@ -2,6 +2,9 @@
 #define __SORT_MERGE_H
 
 #include <stdio.h>
+#include <map>      // 
+#include <string>
+#include <vector>
 
 
 class CSortMerge
@@ -17,6 +20,9 @@ public:
     int SplitRecord(void);
 
 private:
+    int DumpRecord(const char* filename, std::map<int, string>& recordMap);
+
+private:
     // large file name
     const char* LARGE_FILE_NAME = "HUGE_DATA.txt";
     // tmp record dir, use for split record
@@ -24,7 +30,7 @@ private:
     // large file of max record number
     const long long MAX_RECORD_NUM = 10 * MILLION;
     // max record load in RAM once time
-    const long long MAX_LOAD_NUM =  100 * THOUSAND;
+    const long long MAX_LOAD_NUM =  MILLION;
 
     // split record file number
     long long m_splitNum;

@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h> // strlen
 #include <sys/time.h>
 #include <time.h>
 #include <assert.h> // assert
@@ -18,6 +20,34 @@ static unsigned long s_digit_tbl[] = {
 };
 
 const int DIGIT_SIZE = sizeof(s_digit_tbl) / sizeof(s_digit_tbl[0]);
+
+int CUtils::SplitStr(const char* src, char* mark, std::vector<std::string>& vecRet)
+{
+    char* ps_temp;
+    char* p;
+    std::string st_str;
+    ps_temp = new char[strlen(src)+2];
+    snprintf(ps_temp, strlen(src)+1 , "%s" , src);
+    char *last = NULL;
+
+    p = strtok_r(ps_temp, mark, &last);
+    if (NULL == p)
+    {
+        delete ps_temp;
+        return 0;
+    }
+
+    st_str = (std::string)p;
+    vecRet.push_back(st_str);
+    while (NULL != (p = strtok_r(NULL, mark, &last)))
+    {
+        st_str = (std::string)p;
+        vecRet.push_back(st_str);
+    }
+    delete ps_temp;
+
+    return 0;
+}
 
 // simple unsigned int to string, more slowly than redis method
 int CUtils::Uint2String(char* dst, size_t dstlen, unsigned int value)

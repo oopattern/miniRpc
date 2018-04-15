@@ -6,7 +6,6 @@
 #include <errno.h>  // errno
 #include <string.h> // memcpy, strlen
 #include <fstream>  // getline
-#include <string>
 #include "public.h"
 #include "sort_merge.h"
 
@@ -76,6 +75,38 @@ int CSortMerge::InitLargeFile(void)
     return OK;
 }
 
+int CSortMerge::DumpRecord(const char* filename, std::map<int, string>& recordMap)
+{
+    int fd = ::open(filename, O_RDWR | O_CREAT | O_TRUNC, ACCESS_MODE);
+    if (fd < 0)
+    {
+        printf("split open error:%s\n", strerror(errno));
+        return ERROR;
+    }
+
+    std::map<int, string>::iterator it;
+    for (it = recordMap.begin(); it != recordMap.end(); ++it)
+    {
+        // to_string: c++ 11
+        std::string record = to_string(it->first);
+        record += ",";
+        record += it->second;
+        record += "\n";
+
+        // append record into tmp file
+        int nwrite = record.size();
+        if (nwrite != ::write(fd, record.c_str(), nwrite))
+        {
+            ::close(fd);
+            printf("split write error:%s\n", strerror(errno));
+            return ERROR;
+        }
+    }
+
+    ::close(fd);
+    return OK;
+}
+
 // split huge record into many files
 int CSortMerge::SplitRecord(void)
 {
@@ -92,52 +123,51 @@ int CSortMerge::SplitRecord(void)
         printf("create %s success\n", TMP_RECORD_DIR);
     }
 
+    char time[64] = {0};
+    CUtils::GetCurrentTime(time, sizeof(time));
+    printf("Split Record Start Time: %s\n", time);
+
     std::string line;
     fstream f(LARGE_FILE_NAME);
 
     // read all record, split into many files
-    int fd = -1;
     long long count = 0;
+    std::map<int, string> recordMap;
     while (getline(f, line))
     {
-        // check if need new tmp file
-        if (0 == count)
+        // sort record
+        std::vector<string> vec;
+        CUtils::SplitStr(line.c_str(), ",", vec);
+        if (vec.size() != 2)
         {
-            char filename[64] = {0};
-            snprintf(filename, sizeof(filename), "%s/tmp%d.log", TMP_RECORD_DIR, ++m_splitNum);
-            fd = ::open(filename, O_RDWR | O_CREAT | O_TRUNC, ACCESS_MODE);
-            if (fd < 0)
-            {
-                printf("split open error:%s\n", strerror(errno));
-                return ERROR;
-            }
-        }
-
-        // append record into tmp file
-        int nwrite = line.size();
-        if (nwrite != ::write(fd, line.c_str(), nwrite))
-        {
-            ::close(fd);
-            printf("split write error:%s\n", strerror(errno));
+            printf("record format error\n");
             return ERROR;
         }
+        
+        int key = ::atoi(vec[0].c_str());
+        recordMap[key] = vec[1];
 
-        // next record
+        // put record into tmp file
         count++;
         if (count >= MAX_LOAD_NUM)
         {
-            // close file, prepare for next new tmp file
+            char filename[64] = {0};
+            snprintf(filename, sizeof(filename), "%s/tmp%d.log", TMP_RECORD_DIR, ++m_splitNum);
+            DumpRecord(filename, recordMap);
             count = 0;
-            ::close(fd);
-            fd = -1;
+            recordMap.clear();
         }
     }
-    // take care of close last tmp file
-    if (fd > 0)
+    // rest record put into last tmp file
+    if (count > 0)
     {
-        ::close(fd);
-        fd = -1;
+        char filename[64] = {0};
+        snprintf(filename, sizeof(filename), "%s/tmp%d.log", TMP_RECORD_DIR, ++m_splitNum);
+        DumpRecord(filename, recordMap);
     }
+
+    CUtils::GetCurrentTime(time, sizeof(time));
+    printf("Split Record End   Time: %s\n", time);
 
     return OK;
 }
