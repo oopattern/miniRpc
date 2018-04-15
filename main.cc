@@ -3,6 +3,7 @@
 #include "public.h"
 #include "shmHash.h"
 #include "thread.h"
+#include "sort_merge.h"
 
 using namespace std;
 
@@ -13,6 +14,7 @@ static double s_threadTime[THREAD_NUM+1] = {0};
 // query mangitude
 const long long QUERY_TIME = 50 * MILLION;
 
+// - - - - - - - - SHM TEST - - - - - - -
 static void TestReadShm(long long times);
 static void TestModifyShm(long long times);
 static void TestShmMutex(int threadNum, long long times);
@@ -21,6 +23,8 @@ static void TestWorkerThread(const ThreadFunc& cb);
 static void TestReadShmTPS(void);
 static void TestThreadAbort(void);
 static void TestAbortShm(long long times);
+// - - - - - - - - SORT TEST - - - - - - -
+static void TestSortLargeFile(void);
 
 
 // check out if pthread coredump, will other process/thread will be dead lock?
@@ -306,19 +310,25 @@ void TestReadShmTPS(void)
     }
 }
 
+void TestSortLargeFile(void)
+{
+    CSortMerge sort;
+    sort.InitLargeFile();
+    sort.SplitRecord();
+}
+
 int main(void)
 {
     printf("hello world\n");    
-    printf("_POSIX_THREADS=%ld\n", _POSIX_THREADS);
-    printf("_POSIX_C_SOURCE=%ld\n", _POSIX_C_SOURCE);
     //TestShmCapacity();
     //TestReadShmTPS();
     //TestReadShm(QUERY_TIME);
     //TestShmMutex(0, QUERY_TIME);
     //TestShmMutex(THREAD_NUM, QUERY_TIME);
     //TestModifyShm(QUERY_TIME);
-    TestThreadAbort();
+    //TestThreadAbort();
     //TestAbortShm(QUERY_TIME);
+    TestSortLargeFile();
     printf("shm test finish.\n");
     return 0;
 }
