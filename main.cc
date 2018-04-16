@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <vector>
 #include "public.h"
-#include "shmHash.h"
+#include "shm_hash.h"
 #include "thread.h"
 #include "sort_merge.h"
 
@@ -25,6 +25,7 @@ static void TestThreadAbort(void);
 static void TestAbortShm(long long times);
 // - - - - - - - - SORT TEST - - - - - - -
 static void TestSortLargeFile(void);
+static void TestSortSplitRecord(void);
 
 
 // check out if pthread coredump, will other process/thread will be dead lock?
@@ -314,6 +315,11 @@ void TestSortLargeFile(void)
 {
     CSortMerge sort;
     sort.InitLargeFile();
+}
+
+void TestSortSplitRecord(void)
+{
+    CSortMerge sort;
     sort.SplitRecord();
 }
 
@@ -329,6 +335,7 @@ int main(void)
     //TestThreadAbort();
     //TestAbortShm(QUERY_TIME);
     TestSortLargeFile();
+    //TestSortSplitRecord();
     printf("shm test finish.\n");
     return 0;
 }

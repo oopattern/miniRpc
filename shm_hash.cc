@@ -8,7 +8,7 @@
 #include <sys/mman.h>// mmap
 #include <sys/stat.h>// fstat
 #include <math.h>   // sqrt
-#include "shmHash.h"
+#include "shm_hash.h"
 #include "thread.h"
 
 // Posix-mmap method, default shm way, compare with SystemV-shmget method
@@ -16,7 +16,7 @@
 // read-write concurrent sync way, default atomic, compare with mutex lock
 // for mutli-thread in a process, atomic may be the best way, TPS will be much higher
 // for mutli-process, mutex or atomic may be little difference
-#define USE_LOCK    1
+#define USE_LOCK    0
 
 static const int ATOMIC_COUNT = 2;
 static const long long ATOMIC_TRY_LIMIT = 200000000L;

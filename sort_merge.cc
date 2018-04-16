@@ -152,7 +152,7 @@ int CSortMerge::SplitRecord(void)
         if (count >= MAX_LOAD_NUM)
         {
             char filename[64] = {0};
-            snprintf(filename, sizeof(filename), "%s/tmp%d.log", TMP_RECORD_DIR, ++m_splitNum);
+            snprintf(filename, sizeof(filename), "%s/tmp%lld.log", TMP_RECORD_DIR, ++m_splitNum);
             DumpRecord(filename, recordMap);
             count = 0;
             recordMap.clear();
@@ -162,7 +162,7 @@ int CSortMerge::SplitRecord(void)
     if (count > 0)
     {
         char filename[64] = {0};
-        snprintf(filename, sizeof(filename), "%s/tmp%d.log", TMP_RECORD_DIR, ++m_splitNum);
+        snprintf(filename, sizeof(filename), "%s/tmp%lld.log", TMP_RECORD_DIR, ++m_splitNum);
         DumpRecord(filename, recordMap);
     }
 
