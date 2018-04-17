@@ -334,7 +334,7 @@ int main(void)
     //TestModifyShm(QUERY_TIME);
     //TestThreadAbort();
     //TestAbortShm(QUERY_TIME);
-    TestSortLargeFile();
+    //TestSortLargeFile();
     //TestSortSplitRecord();
     printf("shm test finish.\n");
     return 0;
