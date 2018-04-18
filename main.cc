@@ -320,7 +320,7 @@ void TestSortLargeFile(void)
 void TestSortSplitRecord(void)
 {
     CSortMerge sort;
-    sort.SplitRecord();
+    sort.SplitRecordFast();
 }
 
 int main(void)
@@ -335,7 +335,7 @@ int main(void)
     //TestThreadAbort();
     //TestAbortShm(QUERY_TIME);
     //TestSortLargeFile();
-    //TestSortSplitRecord();
+    TestSortSplitRecord();
     printf("shm test finish.\n");
     return 0;
 }

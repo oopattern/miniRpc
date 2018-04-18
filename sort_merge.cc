@@ -108,7 +108,7 @@ int CSortMerge::DumpRecord(const char* filename, std::map<int, string>& recordMa
 }
 
 // split huge record into many files
-int CSortMerge::SplitRecord(void)
+int CSortMerge::SplitRecordFast(void)
 {
     if (0 != ::access(LARGE_FILE_NAME, F_OK))
     {
@@ -131,8 +131,69 @@ int CSortMerge::SplitRecord(void)
     fstream f(LARGE_FILE_NAME);
 
     // read all record, split into many files
+    int fd = -1;
+    int nwrite = 0;
     long long count = 0;
+        
+    while (getline(f, line))
+    {
+        // create new tmp file
+        if (0 == count)
+        {
+            char filename[64] = {0};
+            snprintf(filename, sizeof(filename), "%s/tmp%lld.log", TMP_RECORD_DIR, ++m_splitNum);
+            fd = ::open(filename, O_RDWR | O_CREAT | O_TRUNC, ACCESS_MODE);
+            if (fd < 0)
+            {
+                printf("split open error:%s\n", strerror(errno));    
+                return ERROR;
+            }
+        }
+
+        // append record on tmp file
+        line += "\n";
+        nwrite = line.size();
+        if (nwrite != ::write(fd, line.c_str(), nwrite))
+        {
+            ::close(fd);
+            printf("split write error:%s\n", strerror(errno));
+            return ERROR;
+        }
+
+        // close tmp file
+        count++;
+        if (count >= MAX_LOAD_NUM)
+        {
+            count = 0;
+            ::close(fd);            
+            fd = -1;
+        }
+    }
+    // finish close last tmp file
+    if (fd > 0)
+    {
+        ::close(fd);
+        fd = -1;
+    }
+    
+    CUtils::GetCurrentTime(time, sizeof(time));
+    printf("Split Record End   Time: %s\n", time);
+
+    return OK;
+}
+
+int CSortMerge::SplitRecordSlow(void)
+{
     std::map<int, string> recordMap;
+    std::string line;
+    char time[64] = {0};
+    
+    fstream f(LARGE_FILE_NAME);
+
+    CUtils::GetCurrentTime(time, sizeof(time));
+    printf("Split Record Start Time: %s\n", time);
+
+    long long count = 0;
     while (getline(f, line))
     {
         // sort record
@@ -153,7 +214,15 @@ int CSortMerge::SplitRecord(void)
         {
             char filename[64] = {0};
             snprintf(filename, sizeof(filename), "%s/tmp%lld.log", TMP_RECORD_DIR, ++m_splitNum);
+
+            CUtils::GetCurrentTime(time, sizeof(time));            
+            printf("[%s] dump record start time: %s\n", filename, time);
+
             DumpRecord(filename, recordMap);
+
+            CUtils::GetCurrentTime(time, sizeof(time));
+            printf("[%s] dump record end   time: %s\n", filename, time);
+
             count = 0;
             recordMap.clear();
         }

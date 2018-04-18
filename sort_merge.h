@@ -17,10 +17,11 @@ public:
     int InitLargeFile(void);
 
     // sort record in RAM, split huge record into many files
-    int SplitRecord(void);
+    int SplitRecordFast(void);
 
 private:
     int DumpRecord(const char* filename, std::map<int, string>& recordMap);
+    int SplitRecordSlow(void);
 
 private:
     // large file name
@@ -30,7 +31,7 @@ private:
     // large file of max record number
     const long long MAX_RECORD_NUM = 10 * MILLION;
     // max record load in RAM once time
-    const long long MAX_LOAD_NUM =  MILLION;
+    const long long MAX_LOAD_NUM = 2 * MILLION;
 
     // split record file number
     long long m_splitNum;
