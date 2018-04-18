@@ -7,6 +7,7 @@
 #include <string.h> // memcpy, strlen
 #include <fstream>  // getline
 #include "public.h"
+#include "thread.h"
 #include "sort_merge.h"
 
 using namespace std;
@@ -107,6 +108,60 @@ int CSortMerge::DumpRecord(const char* filename, std::map<int, string>& recordMa
     return OK;
 }
 
+// pthread for sort record, for small tmp file
+void CSortMerge::SortThread(void)
+{
+    while (1)
+    {
+        std::string record = m_fileQueue.Take();
+        if (FINISH_THREAD_FLAG == record)
+        {
+            printf("tid=%d sort thread quit\n", CThread::Tid());
+            return;
+        }
+
+        // checkout if file exsist
+        if (0 != ::access(record.c_str(), F_OK))
+        {
+            printf("record file:%s is not exsist\n", record.c_str());
+            continue;
+        }            
+
+        char time[64] = {0};
+        CUtils::GetCurrentTime(time, sizeof(time));            
+        printf("tid=%d dump record=%s start time: %s\n", CThread::Tid(), record.c_str(), time);
+
+        std::map<int, string> recordMap;
+        std::string line;
+        fstream f(record.c_str());        
+
+        // sort record
+        while (getline(f, line))
+        {
+            // sort record
+            std::vector<string> vec;
+            CUtils::SplitStr(line.c_str(), ",", vec);
+            if (vec.size() != 2)
+            {
+                printf("record format error\n");
+                return;
+            }
+            
+            int key = ::atoi(vec[0].c_str());
+            recordMap[key] = vec[1];
+        }
+
+        // dump sort record to file
+        char filename[64] = {0};
+        snprintf(filename, sizeof(filename), "%s_sort", record.c_str());
+        DumpRecord(filename, recordMap);
+        recordMap.clear();
+
+        CUtils::GetCurrentTime(time, sizeof(time));
+        printf("tid=%d dump record=%s end   time: %s\n", CThread::Tid(), record.c_str(), time);
+    }
+}
+
 // split huge record into many files
 int CSortMerge::SplitRecordFast(void)
 {
@@ -134,7 +189,12 @@ int CSortMerge::SplitRecordFast(void)
     int fd = -1;
     int nwrite = 0;
     long long count = 0;
-        
+    std::string fileRecord;
+
+    // start pthread pool
+    CThreadPool pool(SORT_THREAD_NUM, std::bind(&CSortMerge::SortThread, this));
+    pool.StartAll();
+
     while (getline(f, line))
     {
         // create new tmp file
@@ -148,6 +208,8 @@ int CSortMerge::SplitRecordFast(void)
                 printf("split open error:%s\n", strerror(errno));    
                 return ERROR;
             }
+
+            fileRecord = filename;
         }
 
         // append record on tmp file
@@ -167,6 +229,9 @@ int CSortMerge::SplitRecordFast(void)
             count = 0;
             ::close(fd);            
             fd = -1;
+
+            // add file record, protect by mutex
+            m_fileQueue.Put(fileRecord);
         }
     }
     // finish close last tmp file
@@ -174,10 +239,25 @@ int CSortMerge::SplitRecordFast(void)
     {
         ::close(fd);
         fd = -1;
+
+        // add file record, protect by mutex
+        m_fileQueue.Put(fileRecord);
     }
+
+    // add pthread finish flag, notify pthread to quit
+    for (int i = 0; i < SORT_THREAD_NUM; i++)
+    {
+        m_fileQueue.Put(FINISH_THREAD_FLAG);
+    }
+
+    printf("wait for all sort pthread done...\n");
+
+    // join all pthread 
+    pool.JoinAll();
     
     CUtils::GetCurrentTime(time, sizeof(time));
     printf("Split Record End   Time: %s\n", time);
+    printf("file queue size=%ld\n", m_fileQueue.Size());
 
     return OK;
 }
