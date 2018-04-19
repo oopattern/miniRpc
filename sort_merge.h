@@ -21,9 +21,11 @@ public:
     int SplitRecordFast(void);
 
 private:
-    int DumpRecord(const char* filename, std::map<int, string>& recordMap);
+    int SortRecord(const char* filename, std::map<int, string>& recordMap);
+    int DumpRecord(const char* filename, const std::map<int, string>& recordMap);
     int SplitRecordSlow(void);
     void SortThread(void);
+    void MergeThread(void);
 
 private:
     // thread finish flag
@@ -40,8 +42,10 @@ private:
     const long long SORT_THREAD_NUM = 4;
 
     // split record file number
-    long long   m_splitNum;
-    CBlockQueue m_fileQueue;  
+    long long   m_splitNum;     // small tmp file, split by huge file
+    long long   m_mergeTimes;   // merge times, should use atomic var
+    CBlockQueue m_fileQueue;    // sorted tmp file, from small tmp file
+    CBlockQueue m_mergeQueue;   // merge file, from sort tmp file
 };
 
 #endif // end of __SORT_MERGE_H
