@@ -28,6 +28,7 @@ using namespace std;
 CSortMerge::CSortMerge()
 {
     m_splitNum = 0;
+    m_mergeTimes = 0;
 }
 
 CSortMerge::~CSortMerge()
@@ -42,8 +43,7 @@ int CSortMerge::InitLargeFile(void)
     char line[64] = {0};
     char time[64] = {0};
     
-    CUtils::GetCurrentTime(time, sizeof(time));
-    printf("Start Time:%s\n", time);
+    printf("Start Time:%s\n", CUtils::GetCurrentTime());
 
     // create data file with huge record, if file exsist, turncate to zero
     int fd = ::open(LARGE_FILE_NAME, O_RDWR | O_CREAT | O_TRUNC, ACCESS_MODE);
@@ -68,8 +68,7 @@ int CSortMerge::InitLargeFile(void)
         }
     }
 
-    CUtils::GetCurrentTime(time, sizeof(time));
-    printf("End   Time:%s\n", time);
+    printf("End   Time:%s\n", CUtils::GetCurrentTime());
 
     // close the file
     ::close(fd);
@@ -137,108 +136,125 @@ int CSortMerge::DumpRecord(const char* filename, const std::map<int, string>& re
     return OK;
 }
 
+void CSortMerge::MergeRecord(const char* file1, const char* file2)
+{
+    assert((file1 != NULL) && (file2 != NULL));
+
+    char filename[64] = {0};
+    snprintf(filename, sizeof(filename), "TMP_RECORD/merge%d.log", ++m_mergeTimes);
+    
+    std::string line;
+    fstream f1(file1);
+    fstream f2(file2);
+
+    printf("tid=%d merge file=%s start time: %s\n", CThread::Tid(), filename, CUtils::GetCurrentTime());
+
+    int mfd = -1;        
+    mfd = ::open(filename, O_RDWR | O_CREAT | O_TRUNC, ACCESS_MODE);
+    if (mfd < 0)
+    {
+        printf("merge thread open error:%s\n", strerror(errno));    
+        return;
+    }
+
+    int key1 = 0;
+    int key2 = 0;
+    bool over1 = false;
+    bool over2 = false;
+    std::string line1;
+    std::string line2;
+    std::vector<string> vec1;
+    std::vector<string> vec2;
+
+    while (!over1 || !over2)
+    {
+        // first read two file head line
+        if ((0 == key1) && (0 == key2))
+        {
+            getline(f1, line1);
+            getline(f2, line2);
+            CUtils::SplitStr(line1.c_str(), (char*)",", vec1);
+            CUtils::SplitStr(line2.c_str(), (char*)",", vec2);
+            assert(2 == vec1.size() && 2 == vec2.size());
+            key1 = ::atoi(vec1[0].c_str());
+            key2 = ::atoi(vec2[0].c_str());
+        }
+        else
+        {
+            // key1 <= key2, continue read file1
+            if (key1 <= key2)
+            {
+                std::vector<string> vec1;
+                if (getline(f1, line1))
+                {
+                    CUtils::SplitStr(line1.c_str(), (char*)",", vec1);
+                    assert(2 == vec1.size());
+                    key1 = ::atoi(vec1[0].c_str());
+                }
+                else
+                {
+                    over1 = true;
+                    key1 = INT_MAX;
+                }
+            }
+            // key1 > key2, continue read file2
+            else
+            {
+                std::vector<string> vec2;          
+                if (getline(f2, line2))
+                {
+                    CUtils::SplitStr(line2.c_str(), (char*)",", vec2);
+                    assert(2 == vec2.size());
+                    key2 = ::atoi(vec2[0].c_str());
+                }
+                else
+                {
+                    over2 = true;
+                    key2 = INT_MAX;
+                }
+            }
+        }
+        
+        // sort record from min to max
+        std::string record = ((key1 <= key2) ? (line1+"\n") : (line2+"\n"));
+        int nwrite = record.size();
+        if (nwrite != ::write(mfd, record.c_str(), nwrite))
+        {
+            ::close(mfd);
+            printf("merge write error:%s\n", strerror(errno));
+            return;
+        }
+    }
+
+    // finish merge, close file
+    ::close(mfd);
+
+    // gather merge file
+    m_mergeQueue.Put(filename);
+
+    printf("tid=%d merge file=%s end   time: %s\n", CThread::Tid(), filename, CUtils::GetCurrentTime());
+}
+
 // merge file from sorted tmp file
 void CSortMerge::MergeThread(void)
 {
     while (1)
-    {
-        char filename[64] = {0};
-        std::string file1("TMP_RECORD/tmp1.log_sort");
-        std::string file2("TMP_RECORD/tmp2.log_sort");
-        snprintf(filename, sizeof(filename), "TMP_RECORD/sort.log");
-        
-        std::string line;
-        fstream f1(file1.c_str());
-        fstream f2(file2.c_str());
-
-        char time[64] = {0};
-        CUtils::GetCurrentTime(time, sizeof(time));            
-        printf("tid=%d merge file=%s start time: %s\n", CThread::Tid(), filename, time);
-
-        int mfd = -1;        
-        mfd = ::open(filename, O_RDWR | O_CREAT | O_TRUNC, ACCESS_MODE);
-        if (mfd < 0)
+    {        
+        // if remain only one file, probably merge finish
+        if (1 == m_mergeQueue.Size())
         {
-            printf("merge thread open error:%s\n", strerror(errno));    
+            printf("tid=%d finish merge, thread quit\n", CThread::Tid());
             return;
         }
 
-        int key1 = 0;
-        int key2 = 0;
-        bool over1 = false;
-        bool over2 = false;
-        std::string line1;
-        std::string line2;
-        std::vector<string> vec1;
-        std::vector<string> vec2;
+        // merge two sort file, timeout 2 sec
+        std::vector<string> tbl;
+        tbl = m_mergeQueue.TakeMutli(2, 2);
 
-        while (!over1 || !over2)
+        if (2 == tbl.size())
         {
-            // first read two file head line
-            if ((0 == key1) && (0 == key2))
-            {
-                getline(f1, line1);
-                getline(f2, line2);
-                CUtils::SplitStr(line1.c_str(), (char*)",", vec1);
-                CUtils::SplitStr(line2.c_str(), (char*)",", vec2);
-                assert(2 == vec1.size() && 2 == vec2.size());
-                key1 = ::atoi(vec1[0].c_str());
-                key2 = ::atoi(vec2[0].c_str());
-            }
-            else
-            {
-                // key1 <= key2, continue read file1
-                if (key1 <= key2)
-                {
-                    std::vector<string> vec1;
-                    if (getline(f1, line1))
-                    {
-                        CUtils::SplitStr(line1.c_str(), (char*)",", vec1);
-                        assert(2 == vec1.size());
-                        key1 = ::atoi(vec1[0].c_str());
-                    }
-                    else
-                    {
-                        over1 = true;
-                        key1 = INT_MAX;
-                    }
-                }
-                // key1 > key2, continue read file2
-                else
-                {
-                    std::vector<string> vec2;          
-                    if (getline(f2, line2))
-                    {
-                        CUtils::SplitStr(line2.c_str(), (char*)",", vec2);
-                        assert(2 == vec2.size());
-                        key2 = ::atoi(vec2[0].c_str());
-                    }
-                    else
-                    {
-                        over2 = true;
-                        key2 = INT_MAX;
-                    }
-                }
-            }
-            
-            // sort record from min to max
-            std::string record = ((key1 <= key2) ? (line1+"\n") : (line2+"\n"));
-            int nwrite = record.size();
-            if (nwrite != ::write(mfd, record.c_str(), nwrite))
-            {
-                ::close(mfd);
-                printf("merge write error:%s\n", strerror(errno));
-                return;
-            }
+            MergeRecord(tbl[0].c_str(), tbl[1].c_str());
         }
-
-        // finish merge, close file
-        ::close(mfd);
-
-        CUtils::GetCurrentTime(time, sizeof(time));            
-        printf("tid=%d merge file=%s end   time: %s\n", CThread::Tid(), filename, time);
-
-        return;
     }
 }
 
@@ -261,9 +277,7 @@ void CSortMerge::SortThread(void)
             continue;
         }            
 
-        char time[64] = {0};
-        CUtils::GetCurrentTime(time, sizeof(time));            
-        printf("tid=%d dump file=%s start time: %s\n", CThread::Tid(), file.c_str(), time);
+        printf("tid=%d dump file=%s start time: %s\n", CThread::Tid(), file.c_str(), CUtils::GetCurrentTime());
 
         // sort record from small file
         std::map<int, string> recordMap;
@@ -275,13 +289,33 @@ void CSortMerge::SortThread(void)
         DumpRecord(filename, recordMap);
         recordMap.clear();
 
-        CUtils::GetCurrentTime(time, sizeof(time));
-        printf("tid=%d dump file=%s end   time: %s\n", CThread::Tid(), file.c_str(), time);
+        // gather merge file
+        m_mergeQueue.Put(filename);
+
+        printf("tid=%d dump file=%s end   time: %s\n", CThread::Tid(), file.c_str(), CUtils::GetCurrentTime());
     }
 }
 
+// after split huge file to small file
+int CSortMerge::Merge(void)
+{
+    printf("Merge Record Start Time: %s\n", CUtils::GetCurrentTime());
+
+    // start pthread pool
+    CThreadPool pool(SORT_THREAD_NUM, std::bind(&CSortMerge::MergeThread, this));
+    pool.StartAll();
+
+    printf("wait for all merge pthread done...\n");
+
+    // join all pthread 
+    pool.JoinAll();
+
+    printf("Merge Record End   Time: %s\n", CUtils::GetCurrentTime());
+    return 0;
+}
+
 // split huge record into many files
-int CSortMerge::SplitRecordFast(void)
+int CSortMerge::Split(void)
 {
     if (0 != ::access(LARGE_FILE_NAME, F_OK))
     {
@@ -296,9 +330,7 @@ int CSortMerge::SplitRecordFast(void)
         printf("create %s success\n", TMP_RECORD_DIR);
     }
 
-    char time[64] = {0};
-    CUtils::GetCurrentTime(time, sizeof(time));
-    printf("Split Record Start Time: %s\n", time);
+    printf("Split Record Start Time: %s\n", CUtils::GetCurrentTime());
 
     std::string line;
     fstream f(LARGE_FILE_NAME);
@@ -319,7 +351,7 @@ int CSortMerge::SplitRecordFast(void)
         if (0 == count)
         {
             char filename[64] = {0};
-            snprintf(filename, sizeof(filename), "%s/tmp%lld.log", TMP_RECORD_DIR, ++m_splitNum);
+            snprintf(filename, sizeof(filename), "%s/tmp%d.log", TMP_RECORD_DIR, ++m_splitNum);
             fd = ::open(filename, O_RDWR | O_CREAT | O_TRUNC, ACCESS_MODE);
             if (fd < 0)
             {
@@ -373,13 +405,7 @@ int CSortMerge::SplitRecordFast(void)
     // join all pthread 
     pool.JoinAll();
     
-    CUtils::GetCurrentTime(time, sizeof(time));
-    printf("Split Record End   Time: %s\n", time);
-    printf("file queue size=%ld\n", m_fileQueue.Size());
-
-    // try to merge file
-    MergeThread();
-
+    printf("Split Record End   Time: %s\n", CUtils::GetCurrentTime());
     return OK;
 }
 
@@ -391,8 +417,7 @@ int CSortMerge::SplitRecordSlow(void)
     
     fstream f(LARGE_FILE_NAME);
 
-    CUtils::GetCurrentTime(time, sizeof(time));
-    printf("Split Record Start Time: %s\n", time);
+    printf("Split Record Start Time: %s\n", CUtils::GetCurrentTime());
 
     long long count = 0;
     while (getline(f, line))
@@ -414,15 +439,11 @@ int CSortMerge::SplitRecordSlow(void)
         if (count >= MAX_LOAD_NUM)
         {
             char filename[64] = {0};
-            snprintf(filename, sizeof(filename), "%s/tmp%lld.log", TMP_RECORD_DIR, ++m_splitNum);
+            snprintf(filename, sizeof(filename), "%s/tmp%d.log", TMP_RECORD_DIR, ++m_splitNum);
 
-            CUtils::GetCurrentTime(time, sizeof(time));            
-            printf("[%s] dump record start time: %s\n", filename, time);
-
+            printf("[%s] dump record start time: %s\n", filename, CUtils::GetCurrentTime());
             DumpRecord(filename, recordMap);
-
-            CUtils::GetCurrentTime(time, sizeof(time));
-            printf("[%s] dump record end   time: %s\n", filename, time);
+            printf("[%s] dump record end   time: %s\n", filename, CUtils::GetCurrentTime());
 
             count = 0;
             recordMap.clear();
@@ -432,12 +453,11 @@ int CSortMerge::SplitRecordSlow(void)
     if (count > 0)
     {
         char filename[64] = {0};
-        snprintf(filename, sizeof(filename), "%s/tmp%lld.log", TMP_RECORD_DIR, ++m_splitNum);
+        snprintf(filename, sizeof(filename), "%s/tmp%d.log", TMP_RECORD_DIR, ++m_splitNum);
         DumpRecord(filename, recordMap);
     }
 
-    CUtils::GetCurrentTime(time, sizeof(time));
-    printf("Split Record End   Time: %s\n", time);
+    printf("Split Record End   Time: %s\n", CUtils::GetCurrentTime());
 
     return OK;
 }

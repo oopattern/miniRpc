@@ -25,7 +25,7 @@ static void TestThreadAbort(void);
 static void TestAbortShm(long long times);
 // - - - - - - - - SORT TEST - - - - - - -
 static void TestSortLargeFile(void);
-static void TestSortSplitRecord(void);
+static void TestSortMerge(void);
 
 
 // check out if pthread coredump, will other process/thread will be dead lock?
@@ -250,10 +250,8 @@ void TestReadShmTPS(void)
 {
     // confirm data record in shm
     ValType user;
-    char timeBuf[64];
 
-    CUtils::GetCurrentTime(timeBuf, sizeof(timeBuf));
-    printf("Query start time: %s\n", timeBuf);
+    printf("Query start time: %s\n", CUtils::GetCurrentTime());
 
     printf("Main thread tid=%d\n", CThread::Tid());
     printf("BenchMark QUERY_TIME=%s\n", CUtils::ShowMagnitude(QUERY_TIME));
@@ -301,8 +299,7 @@ void TestReadShmTPS(void)
     printf("%d CPU full load, (all core)TPS=%s\n", THREAD_NUM + 1, CUtils::ShowMagnitude(tps));
     printf("%d CPU full load, (per core)TPS=%s\n", THREAD_NUM + 1, CUtils::ShowMagnitude(tps/(THREAD_NUM+1)));
 
-    CUtils::GetCurrentTime(timeBuf, sizeof(timeBuf));
-    printf("Query   end time: %s\n", timeBuf);
+    printf("Query   end time: %s\n", CUtils::GetCurrentTime());
 
     while (1)
     {
@@ -317,10 +314,11 @@ void TestSortLargeFile(void)
     sort.InitLargeFile();
 }
 
-void TestSortSplitRecord(void)
+void TestSortMerge(void)
 {
     CSortMerge sort;
-    sort.SplitRecordFast();
+    sort.Split();
+    //sort.Merge();
 }
 
 int main(void)
@@ -335,7 +333,7 @@ int main(void)
     //TestThreadAbort();
     //TestAbortShm(QUERY_TIME);
     //TestSortLargeFile();
-    TestSortSplitRecord();
+    TestSortMerge();
     printf("shm test finish.\n");
     return 0;
 }

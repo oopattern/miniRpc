@@ -16,11 +16,11 @@ const unsigned long THOUSAND = 1000;
 class CUtils 
 {
 public:
-    static char* ShowMagnitude(unsigned long val);
     static int Uint2String(char* dst, size_t dstlen, unsigned int value);
-    static long long TimeInMilliseconds(void);
-    static void GetCurrentTime(char* timeStr, int timeLen);
     static int SplitStr(const char* src, char* mark, std::vector<std::string>& vecRet);
+    static char* ShowMagnitude(unsigned long val);
+    static char* GetCurrentTime(void);
+    static long long TimeInMilliseconds(void);
 };
 
 

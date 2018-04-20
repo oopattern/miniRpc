@@ -10,14 +10,23 @@ public:
     CBlockQueue();
     ~CBlockQueue();
 
-    void Put(const std::string& x);
-    std::string Take(void);
+    // get size of queue
     size_t Size(void);
+
+    // put one obj
+    void Put(const std::string& x);
+
+    // take one obj, without timeout
+    std::string Take(void);
+
+    // take mutli obj, timeout with sec
+    std::vector<string> TakeMutli(int num, int timeout); 
 
 private:
     // cond operation
     void Notify(void);
     void Wait(void);
+    void WaitTimeout(int sec);
 
     // mutex operation
     void AssignHolder(void);

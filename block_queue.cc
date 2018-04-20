@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>  // strerror
+#include <sys/time.h>// gettimeofday
 #include <pthread.h> // mutex, cond
 #include <assert.h>  // assert
 #include <error.h>   // errno
@@ -76,6 +77,29 @@ void CBlockQueue::Wait()
     }
 }
 
+void CBlockQueue::WaitTimeout(int sec)
+{
+    // must lock before
+    assert(m_holder > 0);
+
+    struct timespec tsp;
+    struct timeval now;
+
+    ::gettimeofday(&now, NULL);
+    tsp.tv_sec = now.tv_sec;
+    tsp.tv_nsec = now.tv_usec * 1000;
+    tsp.tv_sec += sec;
+
+    // wait timeout
+    if (0 != ::pthread_cond_timedwait(&m_cond, &m_mutex, &tsp))
+    {
+        if (errno != ETIMEDOUT)
+        {
+            printf("cond wait time error:%s\n", strerror(errno));            
+        }
+    }
+}
+
 void CBlockQueue::Put(const std::string& x)
 {
     // take care of order between assignholder and lock
@@ -88,6 +112,39 @@ void CBlockQueue::Put(const std::string& x)
     // take care of order between unassignholder and unlock
     UnassignHolder();
     ::pthread_mutex_unlock(&m_mutex);
+}
+
+std::vector<string> CBlockQueue::TakeMutli(int num, int timeout)
+{
+    assert(num > 0);
+
+    std::vector<string> tbl;
+    std::string front;
+
+    // take care of order between assignholder and lock
+    ::pthread_mutex_lock(&m_mutex);
+    AssignHolder();
+
+    if (m_queue.size() < num)
+    {
+        WaitTimeout(timeout);
+    }
+
+    if (m_queue.size() >= num)
+    {
+        for (int i = 0; i < num; i++)
+        {
+            front = m_queue.front();
+            m_queue.pop_front();
+            tbl.push_back(front);
+        }
+    }
+
+    // take care of order between unassignholder and unlock
+    UnassignHolder();
+    ::pthread_mutex_unlock(&m_mutex);
+
+    return tbl;
 }
 
 std::string CBlockQueue::Take()

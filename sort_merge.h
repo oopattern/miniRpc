@@ -18,13 +18,17 @@ public:
     int InitLargeFile(void);
 
     // sort record in RAM, split huge record into many files
-    int SplitRecordFast(void);
+    int Split(void);
+
+    // merge record in file, merge sorted small file int huge file
+    int Merge(void);
 
 private:
+    int SplitRecordSlow(void);
     int SortRecord(const char* filename, std::map<int, string>& recordMap);
     int DumpRecord(const char* filename, const std::map<int, string>& recordMap);
-    int SplitRecordSlow(void);
     void SortThread(void);
+    void MergeRecord(const char* file1, const char* file2);
     void MergeThread(void);
 
 private:
@@ -37,13 +41,13 @@ private:
     // large file of max record number
     const long long MAX_RECORD_NUM = 10 * MILLION;
     // max record load in RAM once time
-    const long long MAX_LOAD_NUM = 1 * MILLION;
+    const long long MAX_LOAD_NUM = MAX_RECORD_NUM / 8;
     // split or sort thread num
     const long long SORT_THREAD_NUM = 4;
 
-    // split record file number
-    long long   m_splitNum;     // small tmp file, split by huge file
-    long long   m_mergeTimes;   // merge times, should use atomic var
+    // code not finish...
+    int         m_splitNum;     // small tmp file, split by huge file
+    int         m_mergeTimes;   // merge times, should use atomic var
     CBlockQueue m_fileQueue;    // sorted tmp file, from small tmp file
     CBlockQueue m_mergeQueue;   // merge file, from sort tmp file
 };

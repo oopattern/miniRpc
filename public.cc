@@ -103,8 +103,9 @@ long long CUtils::TimeInMilliseconds(void)
 }
 
 // current time with "yy-mm-dd hh:mm::ss msec.usec"
-void CUtils::GetCurrentTime(char* timeStr, int timeLen)
+char* CUtils::GetCurrentTime(void)
 {
+    static char time[64] = {0};
 	struct timeval tv;
 	struct tm tm;
 
@@ -114,9 +115,11 @@ void CUtils::GetCurrentTime(char* timeStr, int timeLen)
 	tm.tm_year += 1900;
 	tm.tm_mon += 1;
 
-	snprintf(timeStr, timeLen, "%4d-%02d-%02d %02d:%02d:%02d %03d.%03d",
+	snprintf(time, sizeof(time), "%4d-%02d-%02d %02d:%02d:%02d %03d.%03d",
 		tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour, 
         tm.tm_min, tm.tm_sec, (unsigned int)(tv.tv_usec / 1000), (unsigned int)(tv.tv_usec % 1000));
+
+    return time;
 }
 
 // show magnitude
