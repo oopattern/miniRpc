@@ -29,6 +29,7 @@ CSortMerge::CSortMerge()
 {
     m_splitNum = 0;
     m_mergeTimes = 0;
+    m_bMergeFin.clear();
 }
 
 CSortMerge::~CSortMerge()
@@ -136,6 +137,27 @@ int CSortMerge::DumpRecord(const char* filename, const std::map<int, string>& re
     return OK;
 }
 
+bool CSortMerge::IsAllMergeFin(void)
+{
+    if (m_bMergeFin.empty())
+    {
+        return false;
+    }
+
+    // checkout if pthread not finish merge
+    std::map<int, bool>::iterator it;
+    for (it = m_bMergeFin.begin(); it != m_bMergeFin.end(); ++it)
+    {
+        if (false == it->second)
+        {
+            return false;
+        }
+    }
+
+    // all pthread finish merge
+    return true;
+}
+
 void CSortMerge::MergeRecord(const char* file1, const char* file2)
 {
     assert((file1 != NULL) && (file2 != NULL));
@@ -147,7 +169,7 @@ void CSortMerge::MergeRecord(const char* file1, const char* file2)
     fstream f1(file1);
     fstream f2(file2);
 
-    printf("tid=%d merge file=%s start time: %s\n", CThread::Tid(), filename, CUtils::GetCurrentTime());
+    long long st = CUtils::TimeInMilliseconds();
 
     int mfd = -1;        
     mfd = ::open(filename, O_RDWR | O_CREAT | O_TRUNC, ACCESS_MODE);
@@ -187,6 +209,11 @@ void CSortMerge::MergeRecord(const char* file1, const char* file2)
                 std::vector<string> vec1;
                 if (getline(f1, line1))
                 {
+                    // filter empty line
+                    if (line1.empty())
+                    {
+                        continue;
+                    }
                     CUtils::SplitStr(line1.c_str(), (char*)",", vec1);
                     assert(2 == vec1.size());
                     key1 = ::atoi(vec1[0].c_str());
@@ -203,6 +230,11 @@ void CSortMerge::MergeRecord(const char* file1, const char* file2)
                 std::vector<string> vec2;          
                 if (getline(f2, line2))
                 {
+                    // filter empty line
+                    if (line2.empty())
+                    {
+                        continue;
+                    }
                     CUtils::SplitStr(line2.c_str(), (char*)",", vec2);
                     assert(2 == vec2.size());
                     key2 = ::atoi(vec2[0].c_str());
@@ -232,7 +264,13 @@ void CSortMerge::MergeRecord(const char* file1, const char* file2)
     // gather merge file
     m_mergeQueue.Put(filename);
 
-    printf("tid=%d merge file=%s end   time: %s\n", CThread::Tid(), filename, CUtils::GetCurrentTime());
+    // delete sorted tmp file
+    ::remove(file1);
+    ::remove(file2);
+
+    long long end = CUtils::TimeInMilliseconds();
+
+    printf("tid=%d merge file=%s use time: %lld(ms)\n", CThread::Tid(), filename, end - st);
 }
 
 // merge file from sorted tmp file
@@ -241,7 +279,10 @@ void CSortMerge::MergeThread(void)
     while (1)
     {        
         // if remain only one file, probably merge finish
-        if (1 == m_mergeQueue.Size())
+        // if not all pthread use merge, will probably cause pthread can not quit
+        // code not finish...
+        if ((1 == m_mergeQueue.Size())
+            && (true == IsAllMergeFin()))
         {
             printf("tid=%d finish merge, thread quit\n", CThread::Tid());
             return;
@@ -250,10 +291,12 @@ void CSortMerge::MergeThread(void)
         // merge two sort file, timeout 2 sec
         std::vector<string> tbl;
         tbl = m_mergeQueue.TakeMutli(2, 2);
-
+        
         if (2 == tbl.size())
         {
+            m_bMergeFin[CThread::Tid()] = false;
             MergeRecord(tbl[0].c_str(), tbl[1].c_str());
+            m_bMergeFin[CThread::Tid()] = true;
         }
     }
 }
@@ -277,7 +320,7 @@ void CSortMerge::SortThread(void)
             continue;
         }            
 
-        printf("tid=%d dump file=%s start time: %s\n", CThread::Tid(), file.c_str(), CUtils::GetCurrentTime());
+        long long st = CUtils::TimeInMilliseconds();
 
         // sort record from small file
         std::map<int, string> recordMap;
@@ -289,10 +332,15 @@ void CSortMerge::SortThread(void)
         DumpRecord(filename, recordMap);
         recordMap.clear();
 
+        // delete unuse tmp file
+        ::remove(file.c_str());
+
+        long long end = CUtils::TimeInMilliseconds();
+
         // gather merge file
         m_mergeQueue.Put(filename);
 
-        printf("tid=%d dump file=%s end   time: %s\n", CThread::Tid(), file.c_str(), CUtils::GetCurrentTime());
+        printf("tid=%d dump file=%s use time:%lld(ms)\n", CThread::Tid(), file.c_str(), end - st);
     }
 }
 

@@ -95,7 +95,7 @@ void CBlockQueue::WaitTimeout(int sec)
     {
         if (errno != ETIMEDOUT)
         {
-            printf("cond wait time error:%s\n", strerror(errno));            
+            //printf("cond wait time error:%s\n", strerror(errno));            
         }
     }
 }

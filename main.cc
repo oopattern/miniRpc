@@ -318,7 +318,7 @@ void TestSortMerge(void)
 {
     CSortMerge sort;
     sort.Split();
-    //sort.Merge();
+    sort.Merge();
 }
 
 int main(void)

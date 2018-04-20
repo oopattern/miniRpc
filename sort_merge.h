@@ -30,6 +30,7 @@ private:
     void SortThread(void);
     void MergeRecord(const char* file1, const char* file2);
     void MergeThread(void);
+    bool IsAllMergeFin(void);
 
 private:
     // thread finish flag
@@ -41,7 +42,7 @@ private:
     // large file of max record number
     const long long MAX_RECORD_NUM = 10 * MILLION;
     // max record load in RAM once time
-    const long long MAX_LOAD_NUM = MAX_RECORD_NUM / 8;
+    const long long MAX_LOAD_NUM = 1 * MILLION;
     // split or sort thread num
     const long long SORT_THREAD_NUM = 4;
 
@@ -50,6 +51,7 @@ private:
     int         m_mergeTimes;   // merge times, should use atomic var
     CBlockQueue m_fileQueue;    // sorted tmp file, from small tmp file
     CBlockQueue m_mergeQueue;   // merge file, from sort tmp file
+    std::map<int,bool> m_bMergeFin; // pthread merge status
 };
 
 #endif // end of __SORT_MERGE_H
