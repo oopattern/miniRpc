@@ -78,6 +78,98 @@ int CSortMerge::InitLargeFile(void)
     return OK;
 }
 
+// split huge file into many bucket file
+int CSortMerge::BucketSplit(void)
+{
+    int fdTbl[BUCKET_NUM];    
+
+    if (0 != ::access(LARGE_FILE_NAME, F_OK))
+    {
+        printf("large file:%s is not exsist\n", LARGE_FILE_NAME);
+        return ERROR;
+    }
+
+    std::vector<string> fVec;
+    printf("Bucket start time: %s\n", CUtils::GetCurrentTime());
+
+    // create bucket file
+    for (int i = 0; i < BUCKET_NUM; i++)
+    {
+        char filename[64] = {0};
+        snprintf(filename, sizeof(filename), "%s/bucket%d", TMP_RECORD_DIR, i+1);
+        fdTbl[i] = ::open(filename, O_RDWR | O_CREAT | O_TRUNC, ACCESS_MODE);
+        if (fdTbl[i] < 0)
+        {
+            printf("bucket open error:%s\n", strerror(errno));    
+            return ERROR;
+        }
+        // mark file
+        fVec.push_back(filename);
+    }
+
+    std::string line;
+    fstream f(LARGE_FILE_NAME);
+
+    while (getline(f, line))
+    {
+        // get key
+        std::vector<string> vec;
+        CUtils::SplitStr(line.c_str(), (char*)",", vec);
+        if (vec.size() != 2)
+        {
+            printf("record format error\n");
+            return ERROR;
+        }
+        
+        // calc bucket slot
+        int key = ::atoi(vec[0].c_str());
+        unsigned char slot = (key >> 24) & 0xFF;
+
+        // append record into bucket file
+        std:string record = line + "\n";
+        int nwrite = record.size();
+        if (nwrite != ::write(fdTbl[slot], record.c_str(), nwrite))
+        {
+            ::close(fdTbl[slot]);
+            printf("bucket write error:%s\n", strerror(errno));
+            return ERROR;
+        }
+    }
+
+    // close all bucket file
+    for (int i = 0; i < BUCKET_NUM; i++)
+    {
+        ::close(fdTbl[i]);
+    }
+
+    printf("bucket split finish, time: %s\n", CUtils::GetCurrentTime());
+
+    // start sort pthread
+    CThreadPool pool(SORT_THREAD_NUM, std::bind(&CSortMerge::SortThread, this));
+    pool.StartAll();
+
+    std::vector<string>::iterator it;
+    for (it = fVec.begin(); it != fVec.end(); ++it)
+    {
+        m_fileQueue.Put(*it);
+    }
+
+    // add pthread finish flag, notify pthread to quit
+    for (int i = 0; i < SORT_THREAD_NUM; i++)
+    {
+        m_fileQueue.Put(FINISH_THREAD_FLAG);
+    }
+
+    printf("wait for all sort pthread done...\n");
+
+    // join all pthread 
+    pool.JoinAll();
+
+    printf("Bucket end   time: %s\n", CUtils::GetCurrentTime());
+
+    return OK;
+}
+
 // sort record from small file, output to recordMap
 int CSortMerge::SortRecord(const char* filename, std::map<int, string>& recordMap)
 {
@@ -345,7 +437,7 @@ void CSortMerge::SortThread(void)
 }
 
 // after split huge file to small file
-int CSortMerge::Merge(void)
+int CSortMerge::GeneralMerge(void)
 {
     printf("Merge Record Start Time: %s\n", CUtils::GetCurrentTime());
 
@@ -363,7 +455,7 @@ int CSortMerge::Merge(void)
 }
 
 // split huge record into many files
-int CSortMerge::Split(void)
+int CSortMerge::GeneralSplit(void)
 {
     if (0 != ::access(LARGE_FILE_NAME, F_OK))
     {

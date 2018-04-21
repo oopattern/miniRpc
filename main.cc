@@ -317,8 +317,9 @@ void TestSortLargeFile(void)
 void TestSortMerge(void)
 {
     CSortMerge sort;
-    sort.Split();
-    sort.Merge();
+    //sort.GeneralSplit();
+    //sort.GeneralMerge();
+    sort.BucketSplit();
 }
 
 int main(void)

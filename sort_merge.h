@@ -18,10 +18,16 @@ public:
     int InitLargeFile(void);
 
     // sort record in RAM, split huge record into many files
-    int Split(void);
+    int GeneralSplit(void);
 
     // merge record in file, merge sorted small file int huge file
-    int Merge(void);
+    int GeneralMerge(void);
+
+    // sort huge file, use bucket method
+    int BucketSplit(void);
+
+    // merge bucket sorted file
+    int BucketMerge(void);
 
 private:
     int SplitRecordSlow(void);
@@ -45,6 +51,8 @@ private:
     const long long MAX_LOAD_NUM = 1 * MILLION;
     // split or sort thread num
     const long long SORT_THREAD_NUM = 4;
+    // bucket file num, from 0 - 127, INT_MAX
+    const long long BUCKET_NUM = 128;
 
     // code not finish...
     int         m_splitNum;     // small tmp file, split by huge file
