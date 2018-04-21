@@ -78,6 +78,54 @@ int CSortMerge::InitLargeFile(void)
     return OK;
 }
 
+// merge sorted bucket file
+int CSortMerge::BucketMerge(void)
+{
+    printf("bucket merge start time: %s\n", CUtils::GetCurrentTime());
+
+    char filename[64] = {0};
+    snprintf(filename, sizeof(filename), "%s/merge.txt", TMP_RECORD_DIR);
+    int fd = ::open(filename, O_RDWR | O_CREAT | O_TRUNC, ACCESS_MODE);
+    if (fd < 0)
+    {
+        printf("bucket merge open error:%s\n", strerror(errno));    
+        return ERROR;
+    }
+
+    // merge all sorted bucket file
+    for (int i = 0; i < BUCKET_NUM; i++)
+    {
+        char bucketFile[64] = {0};
+        snprintf(bucketFile, sizeof(bucketFile), "%s/bucket%d_sort", TMP_RECORD_DIR, i+1);
+
+        std::string line;
+        fstream f(bucketFile);
+        while (getline(f, line))
+        {
+            std::string record = line + "\n";
+            int nwrite = record.size();
+            if (nwrite != ::write(fd, record.c_str(), nwrite))
+            {
+                ::close(fd);
+                printf("bucket write error:%s\n", strerror(errno));
+                return ERROR;
+            }
+        }
+    }
+
+    // remove all sorted bucket file
+    for (int i = 0; i < BUCKET_NUM; i++)
+    {
+        char bucketFile[64] = {0};
+        snprintf(bucketFile, sizeof(bucketFile), "%s/bucket%d_sort", TMP_RECORD_DIR, i+1);
+        ::remove(bucketFile);
+    }
+
+    printf("bucket merge end   time: %s\n", CUtils::GetCurrentTime());
+
+    return OK;
+}
+
 // split huge file into many bucket file
 int CSortMerge::BucketSplit(void)
 {

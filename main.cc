@@ -320,6 +320,7 @@ void TestSortMerge(void)
     //sort.GeneralSplit();
     //sort.GeneralMerge();
     sort.BucketSplit();
+    sort.BucketMerge();
 }
 
 int main(void)
