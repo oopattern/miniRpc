@@ -92,16 +92,43 @@ int CSortMerge::BucketMerge(void)
         return ERROR;
     }
 
-    // merge all sorted bucket file
-    for (int i = 0; i < BUCKET_NUM; i++)
+    std::map<int, string> tbl;
+    int total = 0;
+    int handled = 1;    
+    while (handled <= BUCKET_NUM)
     {
-        char bucketFile[64] = {0};
-        snprintf(bucketFile, sizeof(bucketFile), "%s/bucket%d_sort", TMP_RECORD_DIR, i+1);
+        if (total < BUCKET_NUM)
+        {
+            // take sorted file from work pthread
+            std::string front = m_mergeQueue.Take();
+            // get number from sorted file name
+            char buf[64] = {0};            
+            ::sscanf(front.c_str(), "TMP_RECORD/bucket%[0-9]_sort", buf);
+            int slot = ::atoi(buf);
+            tbl[slot] = front;
+            total++;
+        }
 
+        // if not find sorted file, wait a little time
+        if (tbl.find(handled) == tbl.end())
+        {
+            // sleep 5ms, waitting for next handled sorted file
+            ::usleep(5000);
+            continue;
+        }
+
+        printf("bucket merge handle=%d, file=%s\n", handled, tbl[handled].c_str());
+
+        // merge sorted file by ascending order
         std::string line;
-        fstream f(bucketFile);
+        fstream f(tbl[handled]);
         while (getline(f, line))
         {
+            if (line.empty())
+            {
+                continue;
+            }
+            
             std::string record = line + "\n";
             int nwrite = record.size();
             if (nwrite != ::write(fd, record.c_str(), nwrite))
@@ -110,16 +137,21 @@ int CSortMerge::BucketMerge(void)
                 printf("bucket write error:%s\n", strerror(errno));
                 return ERROR;
             }
-        }
+        }    
+
+        // handle next order sorted file
+        handled++;
     }
 
-    // remove all sorted bucket file
-    for (int i = 0; i < BUCKET_NUM; i++)
+    // remove sorted tmp file
+    std::map<int, string>::const_iterator it;
+    for (it = tbl.cbegin(); it != tbl.cend(); ++it)
     {
-        char bucketFile[64] = {0};
-        snprintf(bucketFile, sizeof(bucketFile), "%s/bucket%d_sort", TMP_RECORD_DIR, i+1);
-        ::remove(bucketFile);
+        ::remove(it->second.c_str());
     }
+
+    // when merge finish, close merge file
+    ::close(fd);
 
     printf("bucket merge end   time: %s\n", CUtils::GetCurrentTime());
 
@@ -127,7 +159,7 @@ int CSortMerge::BucketMerge(void)
 }
 
 // split huge file into many bucket file
-int CSortMerge::BucketSplit(void)
+int CSortMerge::BucketSort(void)
 {
     int fdTbl[BUCKET_NUM];    
 
@@ -192,7 +224,7 @@ int CSortMerge::BucketSplit(void)
 
     printf("bucket split finish, time: %s\n", CUtils::GetCurrentTime());
 
-    // start sort pthread
+    // start sort pthread, use work pthread to sort small file
     CThreadPool pool(SORT_THREAD_NUM, std::bind(&CSortMerge::SortThread, this));
     pool.StartAll();
 
@@ -208,7 +240,12 @@ int CSortMerge::BucketSplit(void)
         m_fileQueue.Put(FINISH_THREAD_FLAG);
     }
 
+    // during work pthread, we use main pthread to merge sorted file
+    // so that we can make the best of CPU fully
+    // should handle bucket file from bucket1 to bucket128, as ascending order
+    // code not finish...
     printf("wait for all sort pthread done...\n");
+    BucketMerge();
 
     // join all pthread 
     pool.JoinAll();
@@ -229,6 +266,11 @@ int CSortMerge::SortRecord(const char* filename, std::map<int, string>& recordMa
     // sort record
     while (getline(f, line))
     {
+        if (line.empty())
+        {
+            continue;
+        }
+
         // sort record
         std::vector<string> vec;
         CUtils::SplitStr(line.c_str(), (char*)",", vec);

@@ -2,7 +2,7 @@
 #define __SORT_MERGE_H
 
 #include <stdio.h>
-#include <map>      // 
+#include <map> 
 #include <string>
 #include <vector>
 #include "block_queue.h"
@@ -24,13 +24,11 @@ public:
     int GeneralMerge(void);
 
     // sort huge file, use bucket method
-    int BucketSplit(void);
-
-    // merge bucket sorted file
-    int BucketMerge(void);
+    int BucketSort(void);
 
 private:
     int SplitRecordSlow(void);
+    int BucketMerge(void);
     int SortRecord(const char* filename, std::map<int, string>& recordMap);
     int DumpRecord(const char* filename, const std::map<int, string>& recordMap);
     void SortThread(void);
