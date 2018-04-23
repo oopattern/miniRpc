@@ -3,6 +3,7 @@
 
 import os
 import sys
+import time
 import random
 import MySQLdb
 
@@ -12,7 +13,8 @@ PWD     = '123456'
 DBNAME  = 'userinfo'
 PORT    = 3306
 
-MAX_RECORD = 10
+MAX_RECORD = 10000000 # 10  million
+MAX_LOAD   = 100000   # 0.1 million
 
 class CMysql(object):
     def __init__(self):
@@ -28,14 +30,35 @@ class CMysql(object):
         count = self.cur.execute(sql, value)
         self.conn.commit()        
 
+    def InsertMany(self, sql, values):
+        count = self.cur.executemany(sql, values)
+        self.conn.commit()
+
 if __name__ == '__main__':
     print 'hello world'
+    print 'Mysql start time: ', time.asctime()
     mdb = CMysql()
     mdb.Connect(HOST, USER, PWD, DBNAME, PORT)
-    for i in range(MAX_RECORD):
+    vals = []
+    count = 0
+    # sql = "insert into student values('%s', %d, %d)" % (sname, sid, stime)
+    # sql should use string unify? 
+    sql = "insert into student values(%s, %s, %s)"
+    for i in range(MAX_RECORD):        
+        # organize record
         sname = 'user' + str(i+1)
         sid = random.randint(0, MAX_RECORD)
         stime = 0
-        sql = "insert into student values('%s', %d, %d)" % (sname, sid, stime)
-        mdb.Insert(sql)
+        vals.append((sname, str(sid), str(stime)))
+        
+        # dump many record
+        count += 1
+        if (count >= MAX_LOAD):        
+            mdb.InsertMany(sql, vals)               
+            count = 0
+            vals = []
+    if len(vals) > 0:
+        mdb.InsertMany(sql, vals)               
+
+    print 'Mysql end   time: ', time.asctime()
     print 'Mysql finish...'
