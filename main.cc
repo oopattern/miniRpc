@@ -319,7 +319,8 @@ void TestSortMerge(void)
     CSortMerge sort;
     //sort.GeneralSplit();
     //sort.GeneralMerge();
-    sort.BucketSort();
+    //sort.BucketSort();
+    sort.BitmapSort();
 }
 
 int main(void)

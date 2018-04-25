@@ -30,6 +30,7 @@ CSortMerge::CSortMerge()
     m_splitNum = 0;
     m_mergeTimes = 0;
     m_bMergeFin.clear();
+    m_bitAddr = NULL;
 }
 
 CSortMerge::~CSortMerge()
@@ -74,6 +75,127 @@ int CSortMerge::InitLargeFile(void)
     // close the file
     ::close(fd);
     printf("Init large file success!\n");
+
+    return OK;
+}
+
+// put key in bitmap, key start from zero
+void CSortMerge::SetBit(int key)
+{
+    if (NULL == m_bitAddr)
+    {
+        return;
+    }
+
+    // 8bit one byte
+    int slot = key / 8;
+    int bit = key % 8;
+    assert(slot < BITMAP_SIZE);
+    m_bitAddr[slot] |= 1 << bit;
+}
+
+// clear key in bitmap, key start from zero
+void CSortMerge::ClearBit(int key)
+{
+    if (NULL == m_bitAddr)
+    {
+        return;
+    }
+
+    // 8bit one byte
+    int slot = key / 8;
+    int bit = key % 8;
+    assert(slot < BITMAP_SIZE);
+    m_bitAddr[slot] &= ~(1 << bit);
+}
+
+// check key in bitmap, key start from zero
+bool CSortMerge::CheckBit(int key)
+{
+    if (NULL == m_bitAddr)
+    {
+        return false;
+    }
+
+    // 8bit one byte
+    int slot = key / 8;
+    int bit = key % 8;
+    assert(slot < BITMAP_SIZE);
+    return (0 != (m_bitAddr[slot] & (1 << bit)));
+}
+
+// sort huge file use bitmap and hash
+int CSortMerge::BitmapSort(void)
+{
+    if (0 != ::access(LARGE_FILE_NAME, F_OK))
+    {
+        printf("large file:%s is not exsist\n", LARGE_FILE_NAME);
+        return ERROR;
+    }
+
+    // alloc bitmap ram, use for bitmap sort
+    char* p = (char*)::malloc(BITMAP_SIZE);
+    if (NULL == p)
+    {
+        printf("bitmap sort malloc error\n");
+        return ERROR;
+    }
+    m_bitAddr = p;
+    memset(m_bitAddr, 0x0, BITMAP_SIZE);
+
+    // read file and init bitmap
+    std::string line;
+    fstream f(LARGE_FILE_NAME);
+
+    printf("sort bitmap start time: %s\n", CUtils::GetCurrentTime());
+
+    while (getline(f, line))
+    {
+        std::vector<string> vec;
+        CUtils::SplitStr(line.c_str(), (char*)",", vec);
+        if (vec.size() != 2)
+        {
+            printf("record format error\n");
+            return ERROR;
+        }
+
+        // store in bitmap ram
+        int key = ::atoi(vec[0].c_str());
+        SetBit(key);
+    }
+
+    printf("sort bitmap end   time: %s\n", CUtils::GetCurrentTime());
+
+    // scan bitmap by order, dump to file
+    int fd = ::open("bitmap_sort.txt", O_RDWR | O_CREAT | O_TRUNC, ACCESS_MODE);
+    if (fd < 0)
+    {
+        printf("bitmap open error:%s\n", strerror(errno));
+        return ERROR;
+    }
+
+    for (long long num = 0; num < BITMAP_SIZE*8; num++)
+    {
+        if (false == CheckBit(num))
+        {
+            continue;
+        }
+
+        // append record into tmp file
+        // c++11 int to string
+        std::string sskey = to_string(num);
+        sskey += "\n";
+        int nwrite = sskey.size();
+        if (nwrite != ::write(fd, sskey.c_str(), nwrite))
+        {
+            ::close(fd);
+            printf("bitmap write error:%s\n", strerror(errno));
+            return ERROR;
+        }
+    }
+
+    ::close(fd);
+    printf("merge bitmap end  time: %s\n", CUtils::GetCurrentTime());
 
     return OK;
 }
