@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <map> 
+#include <unordered_map> // c++11
 #include <string>
 #include <vector>
 #include "block_queue.h"
@@ -43,6 +44,7 @@ private:
     void SetBit(int key);
     void ClearBit(int key);
     bool CheckBit(int key);
+    void ShowBitMap(const std::unordered_map<int, int>& umap);
 
 private:    
     // thread finish flag

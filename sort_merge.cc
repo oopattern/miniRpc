@@ -124,6 +124,17 @@ bool CSortMerge::CheckBit(int key)
     return (0 != (m_bitAddr[slot] & (1 << bit)));
 }
 
+// show unorder_map status
+void CSortMerge::ShowBitMap(const std::unordered_map<int, int>& umap)
+{
+    printf("- - - - - - - - - - - - - - - BITMAP_START - - - - - - - - - - - - - - - \n");
+    printf("unordered_map bucket count: %lu\n", umap.bucket_count());
+    printf("unordered_map   max bucket: %lu\n", umap.max_bucket_count());
+    printf("unordered_map bucket0 size: %lu\n", umap.bucket_size(0));
+    printf("unordered_map load  factor: %.2f\n", umap.load_factor());
+    printf("- - - - - - - - - - - - - - - BITMAP_END - - - - - - - - - - - - - - - - \n");
+}
+
 // sort huge file use bitmap and hash
 int CSortMerge::BitmapSort(void)
 {
@@ -149,6 +160,11 @@ int CSortMerge::BitmapSort(void)
 
     printf("sort bitmap start time: %s\n", CUtils::GetCurrentTime());
 
+    // key:num, val:offset, use unorder_map, c++11
+    std::unordered_map<int, int> keyPosMap;
+
+    // scan through all record and sort in bitmap
+    int count = 0;
     while (getline(f, line))
     {
         std::vector<string> vec;
@@ -162,9 +178,32 @@ int CSortMerge::BitmapSort(void)
         // store in bitmap ram
         int key = ::atoi(vec[0].c_str());
         SetBit(key);
+
+        // use unorder_map to store key and offset(inside the file)
+        int offset = f.tellg();
+        keyPosMap[key] = offset;
+        printf("key:%d, offset:%d\n", key, offset);
+        
+        count++;
+        if (count >= 10)
+        {
+            break;
+        }
+    }
+
+    std::unordered_map<int, int>::iterator it;
+    for (it = keyPosMap.begin(); it != keyPosMap.end(); ++it)
+    {
+        int key = it->first;
+        int off = it->second;
+        f.seekg(off);
+        getline(f, line);
+        printf("key: %d, line: %s\n", key, line.c_str());
     }
 
     printf("sort bitmap end   time: %s\n", CUtils::GetCurrentTime());
+    ShowBitMap(keyPosMap);
+    return OK;
 
     // scan bitmap by order, dump to file
     int fd = ::open("bitmap_sort.txt", O_RDWR | O_CREAT | O_TRUNC, ACCESS_MODE);
