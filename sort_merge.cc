@@ -164,7 +164,8 @@ int CSortMerge::BitmapSort(void)
     std::unordered_map<int, int> keyPosMap;
 
     // scan through all record and sort in bitmap
-    int count = 0;
+    // init offset for first key
+    int offset = f.tellg();
     while (getline(f, line))
     {
         std::vector<string> vec;
@@ -180,30 +181,12 @@ int CSortMerge::BitmapSort(void)
         SetBit(key);
 
         // use unorder_map to store key and offset(inside the file)
-        int offset = f.tellg();
+        // record current key offset and calc offset for next key
         keyPosMap[key] = offset;
-        printf("key:%d, offset:%d\n", key, offset);
-        
-        count++;
-        if (count >= 10)
-        {
-            break;
-        }
-    }
-
-    std::unordered_map<int, int>::iterator it;
-    for (it = keyPosMap.begin(); it != keyPosMap.end(); ++it)
-    {
-        int key = it->first;
-        int off = it->second;
-        f.seekg(off);
-        getline(f, line);
-        printf("key: %d, line: %s\n", key, line.c_str());
+        offset = f.tellg();
     }
 
     printf("sort bitmap end   time: %s\n", CUtils::GetCurrentTime());
-    ShowBitMap(keyPosMap);
-    return OK;
 
     // scan bitmap by order, dump to file
     int fd = ::open("bitmap_sort.txt", O_RDWR | O_CREAT | O_TRUNC, ACCESS_MODE);
@@ -220,12 +203,28 @@ int CSortMerge::BitmapSort(void)
             continue;
         }
 
-        // append record into tmp file
         // c++11 int to string
-        std::string sskey = to_string(num);
-        sskey += "\n";
-        int nwrite = sskey.size();
-        if (nwrite != ::write(fd, sskey.c_str(), nwrite))
+        //std::string sskey = to_string(num);
+        
+        if (keyPosMap.find(num) == keyPosMap.end())
+        {
+            printf("key=%lld not found error\n", num);
+            continue;
+        }
+        // if reach end of file, seek is invalid, so need to clear
+        if (true == f.eof())
+        {
+            f.clear();
+        }
+
+        // find KV with offset of key        
+        f.seekg(keyPosMap[num]);
+        getline(f, line);
+        std::string record = line + "\n";
+
+        // dump record in new file
+        int nwrite = record.size();
+        if (nwrite != ::write(fd, record.c_str(), nwrite))
         {
             ::close(fd);
             printf("bitmap write error:%s\n", strerror(errno));
@@ -235,6 +234,8 @@ int CSortMerge::BitmapSort(void)
 
     ::close(fd);
     printf("merge bitmap end  time: %s\n", CUtils::GetCurrentTime());
+
+    ShowBitMap(keyPosMap);
 
     return OK;
 }
