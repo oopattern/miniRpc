@@ -321,10 +321,11 @@ void TestSortMerge(void)
     //sort.GeneralSplit();
     //sort.GeneralMerge();
     //sort.BucketSort();
-    sort.BitmapSort();
-    sort.BitmapQuery(37, line);
+    //sort.BitmapSort();
+    //sort.BitmapQuery(37, line);
     //sort.BtreeSort();
     //sort.BtreeQuery(37, line);
+    sort.SearchCompare();
 }
 
 int main(void)

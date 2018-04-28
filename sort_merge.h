@@ -40,6 +40,9 @@ public:
     // query data, use btree
     int BtreeQuery(int key, std::string& result);
 
+    // // search compare between map and btree_map
+    int SearchCompare(void);
+
 private:
     int SplitRecordSlow(void);
     int BucketMerge(void);

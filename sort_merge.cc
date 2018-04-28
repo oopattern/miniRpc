@@ -32,6 +32,8 @@ CSortMerge::CSortMerge()
     m_mergeTimes = 0;
     m_bMergeFin.clear();
     m_bitAddr = NULL;
+    m_bitKeyMap.clear();
+    m_btreeKeyMap.clear();
 }
 
 CSortMerge::~CSortMerge()
@@ -164,6 +166,77 @@ int CSortMerge::BtreeQuery(int key, std::string& result)
     return OK;
 }
 
+// search compare between map and btree_map
+int CSortMerge::SearchCompare(void)
+{
+    if (0 != ::access(LARGE_FILE_NAME, F_OK))
+    {
+        printf("large file: %s is not exsist\n", LARGE_FILE_NAME);
+        return ERROR;
+    }
+
+    std::string line;
+    fstream f(LARGE_FILE_NAME);
+    
+    std::vector<int> allkey;
+    std::map<int, int> map;
+    btree::btree_map<int, int> btmap;
+
+    printf("search compare start time: %s\n", CUtils::GetCurrentTime());
+
+    // scan through all record and sort in btree
+    int offset = f.tellg();
+    while (getline(f, line))
+    {
+        std::vector<string> vec;
+        CUtils::SplitStr(line.c_str(), (char*)",", vec);
+        if (vec.size() != 2)
+        {
+            printf("record format error\n");
+            return ERROR;
+        }
+
+        // calc key
+        int key = ::atoi(vec[0].c_str());
+        allkey.push_back(key);
+
+        // save offset
+        map[key] = offset;
+        btmap[key] = offset;
+        
+        offset = f.tellg();
+    }
+
+    printf("search compare all key size=%ld\n", allkey.size());
+
+    printf("map search start time: %s\n", CUtils::GetCurrentTime());
+
+    std::vector<int>::iterator it;
+    for (it = allkey.begin(); it != allkey.end(); ++it)
+    {
+        if (map.find(*it) == map.end())
+        {
+            printf("map miss key=%d\n", *it);
+            continue;
+        }
+    }
+
+    printf("map search end   time: %s\n", CUtils::GetCurrentTime());
+
+    for (it = allkey.begin(); it != allkey.end(); ++it)
+    {
+        if (btmap.find(*it) == btmap.end())
+        {
+            printf("btree map miss key=%d\n", *it);
+            continue;
+        }
+    }
+
+    printf("btree search end  time: %s\n", CUtils::GetCurrentTime());
+
+    return OK;
+}
+
 // sort huge file, use btree
 int CSortMerge::BtreeSort(void)
 {
@@ -206,13 +279,16 @@ int CSortMerge::BtreeSort(void)
     int fd = ::open("btree_sort.txt", O_RDWR | O_CREAT | O_TRUNC, ACCESS_MODE);
     if (fd < 0)
     {
-        printf("bitmap open error:%s\n", strerror(errno));
+        printf("btree open error:%s\n", strerror(errno));
         return ERROR;
     }
+
+    printf("btree num size=%ld\n", m_btreeKeyMap.size());
 
     btree::btree_map<int, int>::iterator it;
     for (it = m_btreeKeyMap.begin(); it != m_btreeKeyMap.end(); ++it)
     {
+        // when reach file end, seek will invalid
         if (true == f.eof())
         {
             f.clear();
@@ -293,7 +369,7 @@ int CSortMerge::BitmapSort(void)
     printf("sort bitmap start time: %s\n", CUtils::GetCurrentTime());
 
     // key:num, val:offset, use unorder_map, c++11
-    std::unordered_map<int, int> keyPosMap;
+    //m_bitKeyMap.rehash(20*MILLION);
 
     // scan through all record and sort in bitmap
     // init offset for first key
@@ -328,6 +404,7 @@ int CSortMerge::BitmapSort(void)
         return ERROR;
     }
 
+    printf("bitmap num size=%ld\n", m_bitKeyMap.size());
     for (long long num = 0; num < BITMAP_SIZE*8; num++)
     {
         if (false == CheckBit(num))
@@ -343,6 +420,7 @@ int CSortMerge::BitmapSort(void)
             printf("key=%lld not found error\n", num);
             continue;
         }
+
         // if reach end of file, seek is invalid, so need to clear
         if (true == f.eof())
         {
