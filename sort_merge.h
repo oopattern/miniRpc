@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include "block_queue.h"
+#include "btree/btree_map.h"
 
 
 class CSortMerge
@@ -29,6 +30,15 @@ public:
 
     // sort huge file, use bitmap and hash method
     int BitmapSort(void);
+
+    // sort huge file, use btree method
+    int BtreeSort(void);
+
+    // query data, use bitmap
+    int BitmapQuery(int key, std::string& result);
+
+    // query data, use btree
+    int BtreeQuery(int key, std::string& result);
 
 private:
     int SplitRecordSlow(void);
@@ -65,12 +75,19 @@ private:
     const long long BITMAP_SIZE = 256 * 1024 * 1024;
 
     // code not finish...
+    // bucket sort or general sort operation
     int         m_splitNum;     // small tmp file, split by huge file
     int         m_mergeTimes;   // merge times, should use atomic var
     CBlockQueue m_fileQueue;    // sorted tmp file, from small tmp file
     CBlockQueue m_mergeQueue;   // merge file, from sort tmp file
     std::map<int,bool> m_bMergeFin; // pthread merge status
-    char*       m_bitAddr;      // bitmap start addr
+    
+    // bitmap operation
+    char*       m_bitAddr; // bitmap start addr
+    std::unordered_map<int, int> m_bitKeyMap; // key: num, val: offset
+
+    // btree operation
+    btree::btree_map<int, int> m_btreeKeyMap; // key: num, val: offset
 };
 
 #endif // end of __SORT_MERGE_H

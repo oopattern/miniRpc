@@ -12,8 +12,9 @@ USER    = 'root'
 PWD     = '123456'
 DBNAME  = 'userinfo'
 PORT    = 3306
+TBLNAME = 'student'
 
-MAX_RECORD = 10000000 # 10  million
+MAX_RECORD = 1000000  # 10  million
 MAX_LOAD   = 100000   # 0.1 million
 
 class CMysql(object):
@@ -34,16 +35,17 @@ class CMysql(object):
         count = self.cur.executemany(sql, values)
         self.conn.commit()
 
-if __name__ == '__main__':
-    print 'hello world'
+
+def TestManyInsert():
     print 'Mysql start time: ', time.asctime()
+
     mdb = CMysql()
     mdb.Connect(HOST, USER, PWD, DBNAME, PORT)
     vals = []
     count = 0
     # sql = "insert into student values('%s', %d, %d)" % (sname, sid, stime)
     # sql should use string unify? 
-    sql = "insert into student values(%s, %s, %s)"
+    sql = "insert into " + TBLNAME + " values(%s, %s, %s)"
     for i in range(MAX_RECORD):        
         # organize record
         sname = 'user' + str(i+1)
@@ -61,4 +63,9 @@ if __name__ == '__main__':
         mdb.InsertMany(sql, vals)               
 
     print 'Mysql end   time: ', time.asctime()
+
+
+if __name__ == '__main__':
+    print 'hello world'
+    TestManyInsert()
     print 'Mysql finish...'

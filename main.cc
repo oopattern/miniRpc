@@ -317,10 +317,14 @@ void TestSortLargeFile(void)
 void TestSortMerge(void)
 {
     CSortMerge sort;
+    std::string line;
     //sort.GeneralSplit();
     //sort.GeneralMerge();
     //sort.BucketSort();
     sort.BitmapSort();
+    sort.BitmapQuery(37, line);
+    //sort.BtreeSort();
+    //sort.BtreeQuery(37, line);
 }
 
 int main(void)

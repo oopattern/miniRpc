@@ -12,6 +12,7 @@
 #include "thread.h"
 #include "sort_merge.h"
 
+
 using namespace std;
 
 #define ACCESS_MODE 0777
@@ -135,6 +136,137 @@ void CSortMerge::ShowBitMap(const std::unordered_map<int, int>& umap)
     printf("- - - - - - - - - - - - - - - BITMAP_END - - - - - - - - - - - - - - - - \n");
 }
 
+// query data
+int CSortMerge::BtreeQuery(int key, std::string& result)
+{
+    if (m_btreeKeyMap.find(key) == m_btreeKeyMap.end())
+    {
+        printf("btree key=%d is not found\n", key);
+        return ERROR;
+    }
+
+    if (0 != ::access(LARGE_FILE_NAME, F_OK))
+    {
+        printf("btree file: %s is not exsist\n", LARGE_FILE_NAME);
+        return ERROR;
+    }
+
+    std::string line;
+    fstream f(LARGE_FILE_NAME);
+
+    // search key and return result
+    f.seekg(m_btreeKeyMap[key]);
+    getline(f, line);
+    result = line;
+
+    printf("btree query key=%d, result=%s\n", key, result.c_str());
+
+    return OK;
+}
+
+// sort huge file, use btree
+int CSortMerge::BtreeSort(void)
+{
+    if (0 != ::access(LARGE_FILE_NAME, F_OK))
+    {
+        printf("large file: %s is not exsist\n", LARGE_FILE_NAME);
+        return ERROR;
+    }
+
+    printf("sort btree start time: %s\n", CUtils::GetCurrentTime());
+    
+    std::string line;
+    fstream f(LARGE_FILE_NAME);
+
+    // key: num, val: offset, btree is faster than map when capacity is very large
+    // refer to: https://code.google.com/archive/p/cpp-btree/wikis/UsageInstructions.wiki
+
+    // scan through all record and sort in btree
+    int offset = f.tellg();
+    while (getline(f, line))
+    {
+        std::vector<string> vec;
+        CUtils::SplitStr(line.c_str(), (char*)",", vec);
+        if (vec.size() != 2)
+        {
+            printf("record format error\n");
+            return ERROR;
+        }
+
+        // store in btree
+        int key = ::atoi(vec[0].c_str());
+        m_btreeKeyMap[key] = offset;
+        // update next offset
+        offset = f.tellg();
+    }
+
+    printf("sort btree end   time: %s\n", CUtils::GetCurrentTime());
+
+    // scan btree by order, dump to file
+    int fd = ::open("btree_sort.txt", O_RDWR | O_CREAT | O_TRUNC, ACCESS_MODE);
+    if (fd < 0)
+    {
+        printf("bitmap open error:%s\n", strerror(errno));
+        return ERROR;
+    }
+
+    btree::btree_map<int, int>::iterator it;
+    for (it = m_btreeKeyMap.begin(); it != m_btreeKeyMap.end(); ++it)
+    {
+        if (true == f.eof())
+        {
+            f.clear();
+        }
+
+        // get kv from offset in btree
+        f.seekg(it->second);
+        getline(f, line);
+        std::string record = line + "\n";
+
+        // dump record in new file
+        int nwrite = record.size();
+        if (nwrite != ::write(fd, record.c_str(), nwrite))
+        {
+            ::close(fd);
+            printf("bitmap write error:%s\n", strerror(errno));
+            return ERROR;
+        }
+    }
+
+    ::close(fd);
+    printf("merge btree end  time: %s\n", CUtils::GetCurrentTime());
+
+    return OK;
+}
+
+// query data, use bitmap 
+int CSortMerge::BitmapQuery(int key, std::string& result)
+{
+    if (m_bitKeyMap.find(key) == m_bitKeyMap.end())
+    {
+        printf("bitmap key=%d is not found\n", key);
+        return ERROR;
+    }
+
+    if (0 != ::access(LARGE_FILE_NAME, F_OK))
+    {
+        printf("bitmap file: %s is not exsist\n", LARGE_FILE_NAME);
+        return ERROR;
+    }
+
+    std::string line;
+    fstream f(LARGE_FILE_NAME);
+
+    // search key and return result
+    f.seekg(m_bitKeyMap[key]);
+    getline(f, line);
+    result = line;
+
+    printf("bitmap query key=%d, result=%s\n", key, result.c_str());
+
+    return OK;
+}
+
 // sort huge file use bitmap and hash
 int CSortMerge::BitmapSort(void)
 {
@@ -182,7 +314,7 @@ int CSortMerge::BitmapSort(void)
 
         // use unorder_map to store key and offset(inside the file)
         // record current key offset and calc offset for next key
-        keyPosMap[key] = offset;
+        m_bitKeyMap[key] = offset;
         offset = f.tellg();
     }
 
@@ -206,7 +338,7 @@ int CSortMerge::BitmapSort(void)
         // c++11 int to string
         //std::string sskey = to_string(num);
         
-        if (keyPosMap.find(num) == keyPosMap.end())
+        if (m_bitKeyMap.find(num) == m_bitKeyMap.end())
         {
             printf("key=%lld not found error\n", num);
             continue;
@@ -218,7 +350,7 @@ int CSortMerge::BitmapSort(void)
         }
 
         // find KV with offset of key        
-        f.seekg(keyPosMap[num]);
+        f.seekg(m_bitKeyMap[num]);
         getline(f, line);
         std::string record = line + "\n";
 
@@ -235,7 +367,7 @@ int CSortMerge::BitmapSort(void)
     ::close(fd);
     printf("merge bitmap end  time: %s\n", CUtils::GetCurrentTime());
 
-    ShowBitMap(keyPosMap);
+    ShowBitMap(m_bitKeyMap);
 
     return OK;
 }
@@ -246,7 +378,7 @@ int CSortMerge::BucketMerge(void)
     printf("bucket merge start time: %s\n", CUtils::GetCurrentTime());
 
     char filename[64] = {0};
-    snprintf(filename, sizeof(filename), "%s/merge.txt", TMP_RECORD_DIR);
+    snprintf(filename, sizeof(filename), "bucket_sort.txt");
     int fd = ::open(filename, O_RDWR | O_CREAT | O_TRUNC, ACCESS_MODE);
     if (fd < 0)
     {
