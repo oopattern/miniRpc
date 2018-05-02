@@ -181,6 +181,7 @@ int CSortMerge::SearchCompare(void)
     std::vector<int> allkey;
     std::map<int, int> map;
     btree::btree_map<int, int> btmap;
+    std::unordered_map<int, int> unmap;
 
     printf("search compare start time: %s\n", CUtils::GetCurrentTime());
 
@@ -201,8 +202,9 @@ int CSortMerge::SearchCompare(void)
         allkey.push_back(key);
 
         // save offset
-        map[key] = offset;
-        btmap[key] = offset;
+        map[key] = offset;   // normal map 
+        btmap[key] = offset; // btree
+        unmap[key] = offset; // unordered map
         
         offset = f.tellg();
     }
@@ -233,6 +235,17 @@ int CSortMerge::SearchCompare(void)
     }
 
     printf("btree search end  time: %s\n", CUtils::GetCurrentTime());
+
+    for (it = allkey.begin(); it != allkey.end(); ++it)
+    {
+        if (unmap.find(*it) == unmap.end())
+        {
+            printf("unordered map miss key=%d\n", *it);
+            continue;
+        }
+    }
+
+    printf("unordered map search end time: %s\n", CUtils::GetCurrentTime());
 
     return OK;
 }
