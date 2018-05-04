@@ -315,11 +315,22 @@ void CShmHash::AtomicLockNode(TShmNode* p)
 {
 #if (! USE_LOCK)    
     long long tmp = 0;
+    static long long s_max_loop = 0;
 
     // replace_val: -1
     // expected_val: 0
     while (! ::__sync_bool_compare_and_swap(&p->readAtomic, 0, -1))
     {
+        // just calc max loop times will try to get atomic
+        if (tmp > s_max_loop)
+        {
+            s_max_loop = tmp;
+        }
+
+        // use CAS, process will try to get atomic until finish
+        printf("AtomicLockNode tid=%d, read_atomic=%d, tmp=%lld, s_max_loop=%lld\n", 
+                CThread::Tid(), p->readAtomic, tmp, s_max_loop);
+        
         tmp++;
         // if pthread atomic coredump suddenly, shm atomic var will not change
         // so we should check out by ourself, or will turn to be dead cycle...

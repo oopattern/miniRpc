@@ -27,9 +27,19 @@ SQL_CREATE_TABLE = "create table `student` (main_key int primary key not null au
 SQL_DELETE_TABLE = "drop table `student`;"
 SQL_DEL_INCREMENT = "alter table `student` modify `main_key` int;"
 SQL_DEL_MAINKEY = "alter table `student` drop primary key;"
+SQL_SET_DEFAULT = "alter table `student` alter column `main_key` set default 0;"
+
+# SQL Example: manage db
+# find out variables of mysql, such as binlog, slow_query, engine and so on
+# linux command: mysqld --help --verbose | grep slow
+SQL_SHOW_VAR = "show variables like '%engine%';"
 
 # SQL Example: manage record
-SQL_INSERT_MANY = "insert into `student` values(%s,%s,%s,%s);"
+SQL_INSERT_MANY = "insert into `student` (`main_key`, `id`, `name`, `login_time`) values (%s, %s, %s, %s);"
+SQL_UPDATE = "update `student` set `name`='xxxx' where `name`='user1';"
+SQL_ORDER_BY = "select * from `student` order by `id` desc limit 10;"
+# first group by name, then calc sum of id, finally calc total
+SQL_GROUP_BY = "select `name`, sum(`id`) as `sum_id` from `student` group by `name` with rollup;"
 
 
 class CMysql(object):

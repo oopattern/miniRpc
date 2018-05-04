@@ -241,7 +241,6 @@ void TestShmCapacity()
             g_pShmHash->ShowShm();
             break;
         }
-        usleep(5*1000);
     }
 }
 
@@ -333,14 +332,10 @@ int main(void)
     printf("hello world\n");    
     //TestShmCapacity();
     //TestReadShmTPS();
-    //TestReadShm(QUERY_TIME);
-    //TestShmMutex(0, QUERY_TIME);
-    //TestShmMutex(THREAD_NUM, QUERY_TIME);
-    //TestModifyShm(QUERY_TIME);
+    TestShmMutex(THREAD_NUM, QUERY_TIME);
     //TestThreadAbort();
-    //TestAbortShm(QUERY_TIME);
     //TestSortLargeFile();
-    TestSortMerge();
+    //TestSortMerge();
     printf("shm test finish.\n");
     return 0;
 }
