@@ -9,7 +9,7 @@
 #include <sys/stat.h>// fstat
 #include <math.h>   // sqrt
 #include "shm_hash.h"
-#include "thread.h"
+#include "../thread.h"
 
 // Posix-mmap method, default shm way, compare with SystemV-shmget method
 #define USE_MMAP    1
@@ -18,9 +18,9 @@
 // for mutli-process, mutex or atomic may be little difference
 #define USE_LOCK    0
 
-static const int ATOMIC_COUNT = 2;
-static const long long ATOMIC_TRY_LIMIT = 200000000L;
-static const char* MMAP_NAME = "POSIX_MMAP";
+static const int32_t ATOMIC_COUNT = 2;
+static const int64_t ATOMIC_TRY_LIMIT = 200000000L;
+static const char*   MMAP_NAME = "POSIX_MMAP";
 
 // hash function seed
 static uint32_t dict_hash_function_seed = 5381;
@@ -68,7 +68,7 @@ void CShmHash::ShowShm(void)
     printf("hash total bucket: %d\n", m_totalBucket);
     printf("hash  used bucket: %d\n", m_bucketUsed);
     printf("hash      percent: %.2f%%\n", (double)m_bucketUsed*100.0/m_totalBucket);
-    for (int i = 0; i < HASH_BUCKET_MAX_SIZE; i++)
+    for (int32_t i = 0; i < HASH_BUCKET_MAX_SIZE; i++)
     {
         printf("hash bucket:%d prime:%d\n", i+1, m_bucket[i]);
     }
@@ -76,7 +76,7 @@ void CShmHash::ShowShm(void)
 }
 
 // shm create, Posix method
-int CShmHash::PosixCreate(unsigned int size)
+int32_t CShmHash::PosixCreate(uint32_t size)
 {
     // if shm exsist failed
     m_id = ::shm_open(MMAP_NAME, O_RDWR | O_CREAT | O_EXCL, SHM_USER_MODE);
@@ -120,7 +120,7 @@ int CShmHash::PosixCreate(unsigned int size)
 }
 
 // shm create, SystemV method
-int CShmHash::SystemVCreate(unsigned int size)
+int32_t CShmHash::SystemVCreate(uint32_t size)
 {
     m_id = ::shmget(SHM_KEY, size, SHM_OPT);
     if (m_id < 0)
@@ -132,7 +132,7 @@ int CShmHash::SystemVCreate(unsigned int size)
     return AtShm();
 }
 
-int CShmHash::CreateShm(unsigned int size)
+int32_t CShmHash::CreateShm(uint32_t size)
 {
     if (size < (SHM_HEAD_SIZE + m_totalBucket * SHM_NODE_SIZE))
     {
@@ -148,7 +148,7 @@ int CShmHash::CreateShm(unsigned int size)
 }
 
 // attach shm, Posix method
-int CShmHash::PosixAttach(void)
+int32_t CShmHash::PosixAttach(void)
 {
     struct stat shmStat;
     m_id = ::shm_open(MMAP_NAME, O_RDWR, SHM_USER_MODE);
@@ -188,7 +188,7 @@ int CShmHash::PosixAttach(void)
 }
 
 // attach shm, SystemV method
-int CShmHash::SystemVAttach(void)
+int32_t CShmHash::SystemVAttach(void)
 {
     m_id = ::shmget(SHM_KEY, 0, 0);
     if (m_id < 0)
@@ -200,7 +200,7 @@ int CShmHash::SystemVAttach(void)
     return AtShm();
 }
 
-int CShmHash::AttachShm(void)
+int32_t CShmHash::AttachShm(void)
 {
     if (true == m_isAttach)
     {
@@ -215,7 +215,7 @@ int CShmHash::AttachShm(void)
 #endif
 }
 
-int CShmHash::InitLock(void)
+int32_t CShmHash::InitLock(void)
 {
 #if (USE_LOCK)
     printf("InitLock use mutex...\n");
@@ -269,7 +269,7 @@ void CShmHash::LockShm(void)
 {
 #if (USE_LOCK)    
     TShmHead* p = (TShmHead*)m_ptr;   
-    int ret = ::pthread_mutex_lock(&p->mutex);
+    int32_t ret = ::pthread_mutex_lock(&p->mutex);
     if (EOWNERDEAD == ret)
     {        
         ::pthread_mutex_consistent(&p->mutex);
@@ -314,8 +314,8 @@ bool CShmHash::IsLockShm(void)
 void CShmHash::AtomicLockNode(TShmNode* p)
 {
 #if (! USE_LOCK)    
-    long long tmp = 0;
-    static long long s_max_loop = 0;
+    int64_t tmp = 0;
+    static int64_t s_max_loop = 0;
 
     // replace_val: -1
     // expected_val: 0
@@ -328,7 +328,7 @@ void CShmHash::AtomicLockNode(TShmNode* p)
         }
 
         // use CAS, process will try to get atomic until finish
-        printf("AtomicLockNode tid=%d, read_atomic=%d, tmp=%lld, s_max_loop=%lld\n", 
+        printf("AtomicLockNode tid=%d, read_atomic=%d, tmp=%ld, s_max_loop=%ld\n", 
                 CThread::Tid(), p->readAtomic, tmp, s_max_loop);
         
         tmp++;
@@ -355,19 +355,19 @@ void CShmHash::AtomicUnlockNode(TShmNode* p)
 // add   data: bCreat = true
 // query data: bCreat = false
 // return val: shm node pointer
-char* CShmHash::GetNode(int uid, unsigned int hashKey, bool bCreat)
+char* CShmHash::GetNode(int32_t uid, uint32_t hashKey, bool bCreat)
 {
     char* dst = NULL;
-    unsigned int primeBucketSize = 0;
+    uint32_t primeBucketSize = 0;
 
     // check out lock shm for shm operation
     assert(IsLockShm());
 
     // mutli-order hash for add data or query data
-    for (unsigned int i = 0; i < m_bucketSize; i++)
+    for (uint32_t i = 0; i < m_bucketSize; i++)
     {
         // get slot position
-        unsigned int slot = hashKey % m_bucket[i];
+        uint32_t slot = hashKey % m_bucket[i];
         dst = (char*)m_ptr + SHM_HEAD_SIZE + SHM_NODE_SIZE * (slot + primeBucketSize);
         
         // add data
@@ -394,7 +394,7 @@ char* CShmHash::GetNode(int uid, unsigned int hashKey, bool bCreat)
     return NULL;
 }
 
-int CShmHash::ReadShm(int uid, char* data, int len)
+int32_t CShmHash::ReadShm(int32_t uid, char* data, int32_t len)
 {
     assert((len > 0) && (len <= SHM_NODE_SIZE));
     
@@ -407,8 +407,8 @@ int CShmHash::ReadShm(int uid, char* data, int len)
     // snprintf not strlen is very occpy TPS, so just pay attention to this,
     // try other way instead of snprintf, snprintf will more than 6 times!!!  
     char key[32];
-    int keylen = ll2string(key, 32, (long)uid);
-    unsigned int hashKey = CalcHashKey(key, keylen);
+    int32_t keylen = ll2string(key, 32, uid);
+    uint32_t hashKey = CalcHashKey(key, keylen);
 
     LockShm();
 
@@ -430,7 +430,7 @@ int CShmHash::ReadShm(int uid, char* data, int len)
 }
 
 // add a value to shma, data struct only for TUser temporary
-int CShmHash::WriteShm(int uid, const char* data, int len, bool bCreat)
+int32_t CShmHash::WriteShm(int32_t uid, const char* data, int32_t len, bool bCreat)
 {
     assert((len > 0) && (len <= SHM_NODE_SIZE));
     
@@ -441,8 +441,8 @@ int CShmHash::WriteShm(int uid, const char* data, int len, bool bCreat)
 
     // get slot to insert data
     char key[32];
-    int keylen = ll2string(key, 32, uid);
-    unsigned int hashKey = CalcHashKey(key, keylen);
+    int32_t keylen = ll2string(key, 32, uid);
+    uint32_t hashKey = CalcHashKey(key, keylen);
 
     LockShm();
 
@@ -486,9 +486,9 @@ int CShmHash::WriteShm(int uid, const char* data, int len, bool bCreat)
 }
 
 // just for test !!! absolutely can not use !!!
-int CShmHash::AbortShm(int uid, int chgVal, int target)
+int32_t CShmHash::AbortShm(int32_t uid, int32_t chgVal, int32_t target)
 {
-    static int s_init = 0;
+    static int32_t s_init = 0;
 
     if (m_id < 0)
     {
@@ -496,8 +496,8 @@ int CShmHash::AbortShm(int uid, int chgVal, int target)
     }
 
     char key[32];
-    int keylen = ll2string(key, 32, uid);
-    unsigned int hashKey = CalcHashKey(key, keylen);
+    int32_t keylen = ll2string(key, 32, uid);
+    uint32_t hashKey = CalcHashKey(key, keylen);
 
     LockShm();
 
@@ -536,7 +536,7 @@ int CShmHash::AbortShm(int uid, int chgVal, int target)
     return ((dst != NULL) ? SHM_OK : SHM_ERROR);
 }
 
-int CShmHash::ModifyShm(int uid, int chgVal)
+int32_t CShmHash::ModifyShm(int32_t uid, int32_t chgVal)
 {
     if (m_id < 0)
     {
@@ -544,8 +544,8 @@ int CShmHash::ModifyShm(int uid, int chgVal)
     }
 
     char key[32];
-    int keylen = ll2string(key, 32, uid);
-    unsigned int hashKey = CalcHashKey(key, keylen);
+    int32_t keylen = ll2string(key, 32, uid);
+    uint32_t hashKey = CalcHashKey(key, keylen);
 
     LockShm();
 
@@ -580,7 +580,7 @@ int CShmHash::ModifyShm(int uid, int chgVal)
     return ((dst != NULL) ? SHM_OK : SHM_ERROR);
 }
 
-int CShmHash::AtShm(void)
+int32_t CShmHash::AtShm(void)
 {
     if (m_id < 0)
     {
@@ -606,7 +606,7 @@ int CShmHash::AtShm(void)
     return SHM_OK;
 }
 
-bool CShmHash::IsPrime(unsigned int value)
+bool CShmHash::IsPrime(uint32_t value)
 {
     uint32_t i = 0;
     uint32_t square = (uint32_t)sqrt(value);    
@@ -622,7 +622,7 @@ bool CShmHash::IsPrime(unsigned int value)
     return true;
 }
 
-int CShmHash::GenHashPrimes(void)
+int32_t CShmHash::GenHashPrimes(void)
 {
     uint32_t val = 0;
     uint32_t cnt = 0;
@@ -645,7 +645,7 @@ int CShmHash::GenHashPrimes(void)
     return SHM_ERROR;
 }
 
-int CShmHash::InitHash(void)
+int32_t CShmHash::InitHash(void)
 {
     return GenHashPrimes();
 }
@@ -661,13 +661,13 @@ int CShmHash::InitHash(void)
  * 2. It will not produce the same results on little-endian and big-endian
  *    machines.
  */
-unsigned int CShmHash::CalcHashKey(const void *key, int len) 
+uint32_t CShmHash::CalcHashKey(const void *key, int32_t len) 
 {
     /* 'm' and 'r' are mixing constants generated offline.
      They're not really 'magic', they just happen to work well.  */
     uint32_t seed = dict_hash_function_seed;
     const uint32_t m = 0x5bd1e995;
-    const int r = 24;
+    const int32_t r = 24;
 
     /* Initialize the hash to a 'random' value */
     uint32_t h = seed ^ len;
@@ -709,7 +709,7 @@ unsigned int CShmHash::CalcHashKey(const void *key, int len)
 
 /* Return the number of digits of 'v' when converted to string in radix 10.
  * See ll2string() for more information. */
-unsigned int CShmHash::digits10(unsigned long long v) 
+uint32_t CShmHash::digits10(uint64_t v) 
 {
     if (v < 10) return 1;
     if (v < 100) return 2;
@@ -745,7 +745,7 @@ unsigned int CShmHash::digits10(unsigned long long v)
  *
  * Modified in order to handle signed integers since the original code was
  * designed for unsigned integers. */
-int CShmHash::ll2string(char* dst, size_t dstlen, long long svalue) 
+int32_t CShmHash::ll2string(char* dst, size_t dstlen, int64_t svalue) 
 {
     static const char digits[201] =
         "0001020304050607080910111213141516171819"
@@ -753,7 +753,7 @@ int CShmHash::ll2string(char* dst, size_t dstlen, long long svalue)
         "4041424344454647484950515253545556575859"
         "6061626364656667686970717273747576777879"
         "8081828384858687888990919293949596979899";
-    int negative;
+    int32_t negative;
     unsigned long long value;
 
     /* The main loop works with 64bit unsigned integers for simplicity, so
@@ -786,7 +786,7 @@ int CShmHash::ll2string(char* dst, size_t dstlen, long long svalue)
     next--;
     while (value >= 100) 
     {
-        int const i = (value % 100) * 2;
+        int32_t const i = (value % 100) * 2;
         value /= 100;
         dst[next] = digits[i + 1];
         dst[next - 1] = digits[i];
@@ -800,7 +800,7 @@ int CShmHash::ll2string(char* dst, size_t dstlen, long long svalue)
     } 
     else 
     {
-        int i = (uint32_t) value * 2;
+        int32_t i = (uint32_t) value * 2;
         dst[next] = digits[i + 1];
         dst[next - 1] = digits[i];
     }

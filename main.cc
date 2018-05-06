@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <vector>
 #include "public.h"
-#include "shm_hash.h"
+#include "shm/shm_hash.h"
 #include "thread.h"
 #include "sort_merge.h"
 

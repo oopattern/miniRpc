@@ -16,7 +16,7 @@
 #define SHM_OK          0
 
 // macro
-typedef int             KeyType;
+typedef int32_t        	KeyType;
 typedef long long       money_t;
 
 #if 0
@@ -32,8 +32,8 @@ typedef struct THashTbl {
 // user info
 typedef struct _tValType
 {
-    int uid;
-    char name[10]; // shm can not use string or pointer! delete will core
+    int32_t uid;
+    char    name[10]; // shm can not use string or pointer! delete will core
     money_t money;
 } ValType;
 
@@ -41,8 +41,8 @@ typedef struct _tValType
 typedef struct _tShmNode
 {
     bool    bUsed; // true: already used
-    int     expireTime; // expire time arrived, delete the data
-    int     readAtomic; // atomic operation
+    int32_t expireTime; // expire time arrived, delete the data
+    int32_t readAtomic; // atomic operation
     KeyType key;
     ValType val;
 } TShmNode;
@@ -52,19 +52,19 @@ typedef struct _tShmHead
 {    
     pthread_mutex_t     mutex;
     pthread_mutexattr_t attr;
-    int                 accessAtomic; // atomic operation
+    int32_t             accessAtomic; // atomic operation
 } TShmHead;
 
 // macro
-const unsigned long HASH_BUCKET_MAX_SIZE = 10; // max prime count
-const unsigned long HASH_INIT_PRIME = 1000; // produce prime under 1000
+const uint64_t HASH_BUCKET_MAX_SIZE = 10; // max prime count
+const uint64_t HASH_INIT_PRIME = 1000; // produce prime under 1000
 
 // offset, use for search
 // shm header: pthread_mutex_t 
 // shm node  : node struct or protobuf data format
 // | +-- shm header --+ | +-- shm node (bucket * node_size) --+ |
-const unsigned long SHM_HEAD_SIZE = sizeof(TShmHead);
-const unsigned long SHM_NODE_SIZE = sizeof(TShmNode);
+const uint64_t SHM_HEAD_SIZE = sizeof(TShmHead);
+const uint64_t SHM_NODE_SIZE = sizeof(TShmNode);
 
 
 // operate shm
@@ -74,34 +74,34 @@ public:
     static CShmHash* Instance(void);
 
     // create shm, use Posix mmap or SystemV shmget method, for shm server process
-    int CreateShm(unsigned int size = SHM_SIZE);
+    int32_t CreateShm(uint32_t size = SHM_SIZE);
     // attach shm, for shm client process
-    int AttachShm(void);
+    int32_t AttachShm(void);
     // uid: key
-    int ModifyShm(int uid, int chgVal);
+    int32_t ModifyShm(int32_t uid, int32_t chgVal);
     // uid: key, data: val
-    int ReadShm(int uid, char* data, int len);
+    int32_t ReadShm(int32_t uid, char* data, int32_t len);
     // bCreat: true mean add data, false mean change data
-    int WriteShm(int uid, const char* data, int len, bool bCreat); 
+    int32_t WriteShm(int32_t uid, const char* data, int32_t len, bool bCreat); 
     // show shm status
     void ShowShm(void);
 
     // check out if pthread occur coredump, will happen dead lock?
     // just for test !!! absolutely can not use !!!
-    int AbortShm(int uid, int chgVal, int target);
+    int32_t AbortShm(int32_t uid, int32_t chgVal, int32_t target);
 
 private:
     // SystemV method
-    int AtShm(void);
-    int SystemVCreate(unsigned int size);
-    int SystemVAttach(void);
+    int32_t AtShm(void);
+    int32_t SystemVCreate(uint32_t size);
+    int32_t SystemVAttach(void);
 
     // Posix method
-    int PosixCreate(unsigned int size);
-    int PosixAttach(void);
+    int32_t PosixCreate(uint32_t size);
+    int32_t PosixAttach(void);
 
     // lock operation
-    int InitLock(void);
+    int32_t InitLock(void);
     void LockShm(void);
     void UnlockShm(void);
     bool IsLockShm(void);
@@ -109,15 +109,15 @@ private:
     void AtomicUnlockNode(TShmNode* p);
 
     // hash operation
-    char* GetNode(int uid, unsigned int hashKey, bool bCreat);
-    int InitHash(void);
-    int GenHashPrimes(void);
-    bool IsPrime(unsigned int value);
-    unsigned int CalcHashKey(const void *key, int len);
+    char* GetNode(int32_t uid, uint32_t hashKey, bool bCreat);
+    int32_t InitHash(void);
+    int32_t GenHashPrimes(void);
+    bool IsPrime(uint32_t value);
+    uint32_t CalcHashKey(const void *key, int32_t len);
 
     // digit operation
-    unsigned int digits10(unsigned long long  v);
-    int ll2string(char* dst, size_t dstlen, long long svalue);
+    uint32_t digits10(uint64_t v);
+    int32_t ll2string(char* dst, size_t dstlen, int64_t svalue);
 
 private:
     // singleton, can use template and pthread safe 
@@ -127,15 +127,15 @@ private:
     ~CShmHash();
 
 private:
-    static const int SHM_KEY = 0x20180325; // unique shm key
-    static const int SHM_SIZE = 1024 * 1024; // max shm size, 1Mb
+    static const int32_t SHM_KEY = 0x20180325; // unique shm key
+    static const int32_t SHM_SIZE = 1024 * 1024; // max shm size, 1Mb
     
     // if exsist will fault, pay attention to user mode, 
     // otherwise delete shm will call permission deny
-    static const int SHM_OPT = IPC_CREAT | IPC_EXCL | SHM_USER_MODE; 
+    static const int32_t SHM_OPT = IPC_CREAT | IPC_EXCL | SHM_USER_MODE; 
 
     // shm identify
-    int     m_id; // inside id for shm
+    int32_t m_id; // inside id for shm
     void*   m_ptr; // share memory addr
     bool    m_isLock; // shm lock status
     bool    m_isAttach; // shm attach finish
