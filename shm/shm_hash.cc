@@ -14,7 +14,7 @@
 // read-write concurrent sync way, default atomic, compare with mutex lock
 // for mutli-thread in a process, atomic may be the best way, TPS will be much higher
 // for mutli-process, mutex or atomic may be little difference
-#define USE_LOCK    0
+#define USE_LOCK    1
 
 static const int32_t ATOMIC_COUNT = 2;
 static const int64_t ATOMIC_TRY_LIMIT = 200000000L;
@@ -138,9 +138,9 @@ int32_t CShmHash::AttachShm(void)
     }
 
     // shm init lock, for process, just init once
-    TShmHead* p = (TShmHead*)m_ptr;
-    if (SHM_OK != CShmAlloc::InitLock(&p->mlock))
+    if (SHM_OK != InitLock())
     {
+        printf("Attach shm init lock error\n");
         m_isAttach = false;
         return SHM_ERROR;
     }
@@ -292,8 +292,9 @@ int32_t CShmHash::ReadShm(int32_t uid, char* data, int32_t len)
 {
     assert((len > 0) && (len <= SHM_NODE_SIZE));
     
-    if (m_id < 0)
+    if (NULL == m_ptr)
     {
+        printf("shm hash init error\n");
         return SHM_ERROR;
     }
 
@@ -328,8 +329,9 @@ int32_t CShmHash::WriteShm(int32_t uid, const char* data, int32_t len, bool bCre
 {
     assert((len > 0) && (len <= SHM_NODE_SIZE));
     
-    if (m_id < 0)
+    if (NULL == m_ptr)
     {
+        printf("shm hash init error\n");
         return SHM_ERROR;
     }
 
@@ -384,8 +386,9 @@ int32_t CShmHash::AbortShm(int32_t uid, int32_t chgVal, int32_t target)
 {
     static int32_t s_init = 0;
 
-    if (m_id < 0)
+    if (NULL == m_ptr)
     {
+        printf("shm hash init error\n");
         return SHM_ERROR;
     }
 
@@ -432,8 +435,9 @@ int32_t CShmHash::AbortShm(int32_t uid, int32_t chgVal, int32_t target)
 
 int32_t CShmHash::ModifyShm(int32_t uid, int32_t chgVal)
 {
-    if (m_id < 0)
+    if (NULL == m_ptr)
     {
+        printf("shm hash init error\n");
         return SHM_ERROR;
     }
 

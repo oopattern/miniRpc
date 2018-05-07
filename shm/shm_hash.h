@@ -10,11 +10,6 @@
 // define global
 #define g_pShmHash      CShmHash::Instance()
 
-
-// macro
-typedef int32_t        	KeyType;
-typedef long long       money_t;
-
 #if 0
 // hash table
 typedef struct THashTbl {
@@ -25,6 +20,10 @@ typedef struct THashTbl {
 } THashTbl;
 #endif
 
+// macro
+typedef int32_t        	KeyType;
+typedef long long       money_t;
+
 // user info
 typedef struct _tValType
 {
@@ -33,38 +32,27 @@ typedef struct _tValType
     money_t money;
 } ValType;
 
-// shm node data
-typedef struct _tShmNode
-{
-    bool    bUsed; // true: already used
-    int32_t expireTime; // expire time arrived, delete the data
-    int32_t readAtomic; // atomic operation
-    KeyType key;
-    ValType val;
-} TShmNode;
-
-// shm head info, mutex must be in shm head, for mutli process sync
-typedef struct _tShmHead
-{   
-    TMutex      mlock; // mutex lock
-    int32_t     accessAtomic; // atomic operation
-} TShmHead;
-
-// macro
-const uint64_t HASH_BUCKET_MAX_SIZE = 10; // max prime count
-const uint64_t HASH_INIT_PRIME = 1000; // produce prime under 1000
-
-// offset, use for search
-// shm header: pthread_mutex_t 
-// shm node  : node struct or protobuf data format
-// | +-- shm header --+ | +-- shm node (bucket * node_size) --+ |
-const uint64_t SHM_HEAD_SIZE = sizeof(TShmHead);
-const uint64_t SHM_NODE_SIZE = sizeof(TShmNode);
-
-
 // operate shm
 class CShmHash
 {
+private:
+    // shm node data
+    typedef struct _tShmNode
+    {
+        bool    bUsed; // true: already used
+        int32_t expireTime; // expire time arrived, delete the data
+        int32_t readAtomic; // atomic operation
+        KeyType key;
+        ValType val;
+    } TShmNode;
+
+    // shm head info, mutex must be in shm head, for mutli process sync
+    typedef struct _tShmHead
+    {   
+        TMutex      mlock; // mutex lock
+        int32_t     accessAtomic; // atomic operation
+    } TShmHead;
+
 public:
     static CShmHash* Instance(void);
 
@@ -120,6 +108,15 @@ private:
 private:
     static const int32_t SHM_KEY = 0x20180325; // unique shm key
     static const int32_t SHM_SIZE = 1024 * 1024; // max shm size, 1Mb
+    static const uint64_t HASH_BUCKET_MAX_SIZE = 10; // max prime count
+    static const uint64_t HASH_INIT_PRIME = 1000; // produce prime under 1000
+
+    // offset, use for search
+    // shm header: pthread_mutex_t 
+    // shm node  : node struct or protobuf data format
+    // | +-- shm header --+ | +-- shm node (bucket * node_size) --+ |
+    static const uint64_t SHM_HEAD_SIZE = sizeof(TShmHead);
+    static const uint64_t SHM_NODE_SIZE = sizeof(TShmNode);
     
     // if exsist will fault, pay attention to user mode, 
     // otherwise delete shm will call permission deny

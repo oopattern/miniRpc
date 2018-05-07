@@ -29,9 +29,8 @@ void TestSortMerge(void)
 int main(void)
 {
     printf("hello world\n");    
-    CTestHash::TestShmCapacity();
     //CTestHash::TestShmCapacity();
-    //CTestHash::TestReadShmTPS();
+    CTestHash::TestReadShmTPS();
     //CTestHash::TestShmMutex(THREAD_NUM, QUERY_TIME);
     //CTestHash::TestThreadAbort();
     //TestSortLargeFile();
