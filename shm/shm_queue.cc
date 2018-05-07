@@ -1,11 +1,84 @@
 #include <stdio.h>
+#include <assert.h> // assert
+#include <string.h> // memcpy
 #include "shm_queue.h"
+#include "../thread.h"
 
-enum E_NodeType
+
+static const char* MMAP_QUEUE = "POSIX_MMAP_QUEUE";
+
+CShmQueue* CShmQueue::m_pInstance = NULL;
+
+CShmQueue* CShmQueue::Instance(void)
 {
-    kDataNode = 1,
-    kEndFlagNode = 2
-};
+    if (NULL == m_pInstance)
+    {
+        m_pInstance = new CShmQueue();
+    }
+    return m_pInstance;
+}
+
+CShmQueue::CShmQueue()
+{
+    m_ptr = NULL;
+    m_isAttach = false;
+}
+
+CShmQueue::~CShmQueue()
+{
+
+}
+
+int32_t CShmQueue::CreatShm(uint32_t size)
+{
+    if (size > SHM_QUEUE_BUF_SIZE)
+    {
+        printf("shm size=%d large than queue max size=%d\n", size, SHM_QUEUE_BUF_SIZE);
+        return SHM_ERROR;
+    }
+
+    m_ptr = CShmAlloc::PosixCreate(MMAP_QUEUE, size);
+    if (NULL == m_ptr)
+    {
+        return SHM_ERROR;
+    }
+
+    // mutex lock init once
+    TShmHead* p = (TShmHead*)m_ptr;        
+    if (SHM_OK != CShmAlloc::InitLock(&p->mlock))
+    {
+        m_isAttach = false;
+        return SHM_ERROR;
+    }
+
+    m_isAttach = true;
+    return SHM_OK;
+}
+
+int32_t CShmQueue::AttachShm(void)
+{
+    if (true == m_isAttach)
+    {
+        printf("tid=%d, process already attach before\n", CThread::Tid());
+        return SHM_OK;
+    }
+
+    m_ptr = CShmAlloc::PosixAttach(MMAP_QUEUE);
+    if (NULL == m_ptr)
+    {
+        return SHM_ERROR;
+    }
+
+    TShmHead* p = (TShmHead*)m_ptr;
+    if (SHM_OK != CShmAlloc::InitLock(&p->mlock))
+    {
+        m_isAttach = false;
+        return SHM_ERROR;
+    }
+
+    m_isAttach = true;
+    return SHM_OK;
+}
 
 int32_t CShmQueue::Push(const void* buf, uint32_t len)
 {
@@ -28,6 +101,8 @@ int32_t CShmQueue::Push(const void* buf, uint32_t len)
     }
 
     TShmHead* pShm = (TShmHead*)m_ptr;
+
+    CShmAlloc::LockShm(&pShm->mlock);
 
     bool success = true;
     uint32_t pushPos = 0;
@@ -84,22 +159,22 @@ int32_t CShmQueue::Push(const void* buf, uint32_t len)
         }        
     }
 
-    if (false == success)
+    if (true == success)
     {
-        return SHM_ERROR;
+        // operation for node
+        TShmNode* pNode = (TShmNode*)(pShm->queue + pushPos);    
+        ::memcpy(pNode->data, buf, len);
+        pNode->len = len;
+        pNode->type = kDataNode;
+
+        // pushPos is the right position, not tail
+        // add nodeLen, should include node head
+        pShm->tail = pushPos + nodeLen;
     }
 
-    // operation for node
-    TShmNode* pNode = (TShmNode*)(pShm->queue + pushPos);    
-    ::memcpy(pNode->data, buf, len);
-    pNode->len = len;
-    pNode->type = kDataNode;
+    CShmAlloc::UnlockShm(&pShm->mlock);
 
-    // pushPos is the right position, not tail
-    // add nodeLen, should include node head
-    pShm->tail = pushPos + nodeLen;
-
-    return SHM_OK;
+    return ((true == success) ? (SHM_OK) : (SHM_ERROR));
 }
 
 int32_t CShmQueue::Pop(void* buf, uint32_t* len)
@@ -118,6 +193,9 @@ int32_t CShmQueue::Pop(void* buf, uint32_t* len)
 
     TShmHead* pShm = (TShmHead*)m_ptr;
 
+    CShmAlloc::LockShm(&pShm->mlock);
+
+    bool success  = true;
     uint32_t head = pShm->head;
     uint32_t tail = pShm->tail;
     uint32_t queueSize = pShm->queueSize;
@@ -145,35 +223,48 @@ int32_t CShmQueue::Pop(void* buf, uint32_t* len)
     // node type not match
     if (pNode->type != kDataNode)
     {
+        success = false;
         printf("[fatal] shm queue node type error, can not find node\n");
-        return SHM_ERROR;
     }
-
-    uint32_t bufsize = *len;
-    uint32_t datalen = pNode->len;
-    if (datalen > bufsize)
+    else
     {
-        printf("shm queue pop node size=%d large than buf size=%d error\n", datalen, bufsize);
-        return SHM_ERROR;
+        uint32_t bufsize = *len;
+        uint32_t datalen = pNode->len;
+
+        if (datalen > bufsize)
+        {
+            success = false;
+            printf("shm queue pop node size=%d large than buf size=%d error\n", datalen, bufsize);
+        }
+        else
+        {
+            // pop node data
+            ::memcpy(buf, pNode->data, datalen);
+            *len = datalen;    
+            // update shm queue head position
+            pShm->head = head + sizeof(TShmNode) + datalen;
+        }
     }
 
-    // pop node data
-    ::memcpy(buf, pNode->data, datalen);
-    *len = datalen;
+    CShmAlloc::UnlockShm(&pShm->mlock);
 
-    // update shm queue head position
-    pShm->head = head + sizeof(TShmNode) + datalen;
-
-    return SHM_OK;
+    return ((true == success) ? (SHM_OK) : (SHM_ERROR));
 }
 
 bool CShmQueue::IsFull(void)
 {
+    // use end-flag to charge if reach queue end
     return false;
 }
 
 bool CShmQueue::IsEmpty(void)
 {
-    return false;
-}
+    if (NULL == m_ptr)
+    {
+        printf("shm queue init error\n");
+        return false;
+    }
 
+    TShmHead* p = (TShmHead*)m_ptr;
+    return (p->head == p->tail);
+}

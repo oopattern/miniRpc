@@ -10,7 +10,9 @@ set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3 -Wall")
 
 add_executable( demo 
                 main.cc
+                shm/shm_alloc.cc
                 shm/shm_hash.cc
+                shm/shm_queue.cc
                 block_queue.cc
                 sort_merge.cc
                 thread.cc

@@ -4,16 +4,12 @@
 #include <stdio.h>
 #include <stdint.h> // uint32_t
 #include <unistd.h> // sleep
-#include <pthread.h>// mutex, pthread
-#include <sys/shm.h>// shm
+#include <sys/shm.h>// shmget
+#include "shm_alloc.h"
 
 // define global
 #define g_pShmHash      CShmHash::Instance()
 
-// shm macro
-#define SHM_USER_MODE   0777
-#define SHM_ERROR       -1
-#define SHM_OK          0
 
 // macro
 typedef int32_t        	KeyType;
@@ -49,10 +45,9 @@ typedef struct _tShmNode
 
 // shm head info, mutex must be in shm head, for mutli process sync
 typedef struct _tShmHead
-{    
-    pthread_mutex_t     mutex;
-    pthread_mutexattr_t attr;
-    int32_t             accessAtomic; // atomic operation
+{   
+    TMutex      mlock; // mutex lock
+    int32_t     accessAtomic; // atomic operation
 } TShmHead;
 
 // macro
@@ -96,15 +91,11 @@ private:
     int32_t SystemVCreate(uint32_t size);
     int32_t SystemVAttach(void);
 
-    // Posix method
-    int32_t PosixCreate(uint32_t size);
-    int32_t PosixAttach(void);
-
     // lock operation
     int32_t InitLock(void);
+    bool IsLockShm(void);
     void LockShm(void);
     void UnlockShm(void);
-    bool IsLockShm(void);
     void AtomicLockNode(TShmNode* p);
     void AtomicUnlockNode(TShmNode* p);
 

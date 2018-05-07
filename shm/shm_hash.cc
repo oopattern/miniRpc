@@ -5,8 +5,6 @@
 #include <errno.h>  // errno
 #include <limits.h> // LONG_MAX
 #include <fcntl.h>  // open, O_RDWR
-#include <sys/mman.h>// mmap
-#include <sys/stat.h>// fstat
 #include <math.h>   // sqrt
 #include "shm_hash.h"
 #include "../thread.h"
@@ -20,7 +18,7 @@
 
 static const int32_t ATOMIC_COUNT = 2;
 static const int64_t ATOMIC_TRY_LIMIT = 200000000L;
-static const char*   MMAP_NAME = "POSIX_MMAP";
+static const char*   MMAP_HASH = "POSIX_MMAP_HASH";
 
 // hash function seed
 static uint32_t dict_hash_function_seed = 5381;
@@ -75,50 +73,6 @@ void CShmHash::ShowShm(void)
     printf("- - - - - - - - - - - - - - - HASH_STATUS_END - - - - - - - - - - - - - - - - \n");
 }
 
-// shm create, Posix method
-int32_t CShmHash::PosixCreate(uint32_t size)
-{
-    // if shm exsist failed
-    m_id = ::shm_open(MMAP_NAME, O_RDWR | O_CREAT | O_EXCL, SHM_USER_MODE);
-    if (m_id < 0)
-    {
-        printf("shm_open error:%s\n", strerror(errno));
-        return SHM_ERROR;
-    }
-
-    // fix size
-    if (::ftruncate(m_id, size) < 0)
-    {
-        printf("ftruncate error:%s\n", strerror(errno));
-        return SHM_ERROR;
-    }
-
-    // get shm addr
-    m_ptr = ::mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, m_id, 0);
-    if (MAP_FAILED == m_ptr)
-    {
-        printf("mmap error:%s\n", strerror(errno));
-        return SHM_ERROR;
-    }
-
-    // clear zero of the region
-    memset(m_ptr, 0x0, size);
-
-    // shm init lock, for process, just init once
-    if (SHM_OK != InitLock())
-    {
-        printf("PosixCreate initlock error\n");
-        return SHM_ERROR;
-    }
-
-    // above if fail, will not close fd
-    // code not finish...
-    ::close(m_id);
-    m_isAttach = true;
-
-    return SHM_OK;
-}
-
 // shm create, SystemV method
 int32_t CShmHash::SystemVCreate(uint32_t size)
 {
@@ -141,50 +95,18 @@ int32_t CShmHash::CreateShm(uint32_t size)
     }
 
 #if (USE_MMAP)
-    return PosixCreate(size);
+    m_ptr = CShmAlloc::PosixCreate(MMAP_HASH, size);
+    if (NULL == m_ptr)
+    {
+        return SHM_ERROR;
+    }
+    // shm init lock, for process, just init once
+    int32_t ret = InitLock();
+    m_isAttach = ((SHM_OK == ret) ? true : false);
+    return ret;
 #else
     return SystemVCreate(size);
 #endif
-}
-
-// attach shm, Posix method
-int32_t CShmHash::PosixAttach(void)
-{
-    struct stat shmStat;
-    m_id = ::shm_open(MMAP_NAME, O_RDWR, SHM_USER_MODE);
-    if (m_id < 0)
-    {
-        printf("shm_open error:%s\n", strerror(errno));
-        return SHM_ERROR;
-    }
-
-    if (::fstat(m_id, &shmStat) < 0)
-    {
-        printf("fstat error:%s\n", strerror(errno));
-        return SHM_ERROR;
-    }
-
-    m_ptr = ::mmap(NULL, shmStat.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, m_id, 0);
-    if (MAP_FAILED == m_ptr)
-    {
-        printf("mmap error:%s\n", strerror(errno));
-        return SHM_ERROR;
-    }
-
-    // shm init lock, for process, just init once
-    if (SHM_OK != InitLock())
-    {
-        printf("PosixAttach initlock error\n");
-        return SHM_ERROR;
-    }
-
-    // above if fail, will not close fd
-    // code not finish...
-    ::close(m_id);    
-    m_isAttach = true;
-    printf("tid=%d now attach shm=%p\n", CThread::Tid(), m_ptr);
-
-    return SHM_OK;
 }
 
 // attach shm, SystemV method
@@ -209,7 +131,23 @@ int32_t CShmHash::AttachShm(void)
     }
 
 #if (USE_MMAP)
-    return PosixAttach();
+    m_ptr = CShmAlloc::PosixAttach(MMAP_HASH);
+    if (NULL == m_ptr)
+    {
+        return SHM_ERROR;
+    }
+
+    // shm init lock, for process, just init once
+    TShmHead* p = (TShmHead*)m_ptr;
+    if (SHM_OK != CShmAlloc::InitLock(&p->mlock))
+    {
+        m_isAttach = false;
+        return SHM_ERROR;
+    }
+
+    printf("tid=%d now attach shm=%p\n", CThread::Tid(), m_ptr);
+    m_isAttach = true;
+    return SHM_OK;
 #else
     return SystemVAttach();
 #endif
@@ -218,47 +156,8 @@ int32_t CShmHash::AttachShm(void)
 int32_t CShmHash::InitLock(void)
 {
 #if (USE_LOCK)
-    printf("InitLock use mutex...\n");
-
-    if ((m_id < 0) || (NULL == m_ptr))
-    {
-        printf("InitLock error\n");
-        return SHM_ERROR;
-    }
-
-    // mutex and mutex_attr should be in shm
     TShmHead* p = (TShmHead*)m_ptr;
-
-    // init pthread_mutexattr
-    if (0 != ::pthread_mutexattr_init(&p->attr))
-    {
-        printf("mutex_attr init error:%s\n", strerror(errno));
-        return SHM_ERROR;
-    }
-
-    // set process share attribute, so mutile-process can sync 
-    if (0 != ::pthread_mutexattr_setpshared(&p->attr, PTHREAD_PROCESS_SHARED))
-    {
-        printf("pthread_mutexattr_setshared error:%s\n", strerror(errno));
-        return SHM_ERROR;
-    }
-
-    // set mutex robust attribute, if pthread coredump during locking, 
-    // other pthread can recover mutex, otherwise other process/thread will be dead lock
-    if (0 != ::pthread_mutexattr_setrobust(&p->attr, PTHREAD_MUTEX_ROBUST))
-    {
-        printf("pthread_mutexattr_setrobust error:%s\n", strerror(errno));
-        return SHM_ERROR;
-    }
-
-    // init pthread mutex with mutex_attr
-    if (0 != ::pthread_mutex_init(&p->mutex, &p->attr))
-    {
-        printf("mutex init error:%s\n", strerror(errno));
-        return SHM_ERROR;
-    }
-
-    return SHM_OK;
+    return CShmAlloc::InitLock(&p->mlock);
 #else
     printf("InitLock use atomic...\n");
     return SHM_OK;
@@ -268,13 +167,8 @@ int32_t CShmHash::InitLock(void)
 void CShmHash::LockShm(void)
 {
 #if (USE_LOCK)    
-    TShmHead* p = (TShmHead*)m_ptr;   
-    int32_t ret = ::pthread_mutex_lock(&p->mutex);
-    if (EOWNERDEAD == ret)
-    {        
-        ::pthread_mutex_consistent(&p->mutex);
-        printf("[Fatal Error] pthread coredump when locking, try to release the mutex lock\n");
-    }
+    TShmHead* p = (TShmHead*)m_ptr;    
+    CShmAlloc::LockShm(&p->mlock);
     m_isLock = true; // order can not be wrong!
 #else 
     // access hash table
@@ -293,7 +187,7 @@ void CShmHash::UnlockShm(void)
 #if (USE_LOCK)    
     m_isLock = false; // order can not be wrong!
     TShmHead* p = (TShmHead*)m_ptr;
-    ::pthread_mutex_unlock(&p->mutex);
+    CShmAlloc::UnlockShm(&p->mlock);
 #else
     m_isLock = false;
     TShmHead* p = (TShmHead*)m_ptr;
