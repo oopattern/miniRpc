@@ -14,8 +14,9 @@ typedef struct _tShmHead
 {
     pthread_mutex_t     mutex;
     pthread_mutexattr_t attr;
-    uint32_t            head;
-    uint32_t            tail;
+    uint32_t            head; // start from queue
+    uint32_t            tail; // end with queue + queueSize
+    uint32_t            queueSize;
     uint8_t             queue[0];
 } TShmHead;
 
@@ -40,8 +41,6 @@ private:
 
 private:
     void*       m_ptr;
-    uint32_t    m_queueSize;
-
 };
 
 #endif // __SHM_QUEUE_H
