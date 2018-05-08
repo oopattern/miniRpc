@@ -2,6 +2,7 @@
 #include <string>
 #include "sort_merge.h"
 #include "test/test_shm_hash.cc"
+#include "test/test_shm_queue.cc"
 
 using namespace std;
 
@@ -30,11 +31,10 @@ int main(void)
 {
     printf("hello world\n");    
     //CTestHash::TestShmCapacity();
-    CTestHash::TestReadShmTPS();
+    //CTestHash::TestReadShmTPS();
     //CTestHash::TestShmMutex(THREAD_NUM, QUERY_TIME);
     //CTestHash::TestThreadAbort();
-    //TestSortLargeFile();
-    //TestSortMerge();
+    CTestQueue::TestQueueCapacity();
     printf("shm test finish.\n");
     return 0;
 }

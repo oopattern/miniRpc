@@ -1,3 +1,6 @@
+#ifndef __SHM_ALLOC_H
+#define __SHM_ALLOC_H
+
 #include <stdio.h>
 
 // shm macro
@@ -24,3 +27,5 @@ public:
     static void LockShm(TMutex* mlock);
     static void UnlockShm(TMutex* mlock);
 };
+
+#endif // __SHM_ALLOC_H

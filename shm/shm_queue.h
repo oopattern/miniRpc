@@ -6,6 +6,9 @@
 #include <pthread.h>
 #include "shm_alloc.h"
 
+// define global
+#define g_pShmQueue     CShmQueue::Instance()
+
 
 // operate shm
 class CShmQueue
@@ -13,11 +16,15 @@ class CShmQueue
 public:
     static CShmQueue* Instance(void);
 
-    int32_t CreatShm(uint32_t size);
+    // create operation
+    int32_t CreateShm(uint32_t size = SHM_QUEUE_TOTAL_SIZE);
     int32_t AttachShm(void);
 
+    // push and pop operation
     int32_t Push(const void* buf, uint32_t len);
     int32_t Pop(void* buf, uint32_t* len);
+
+    void ShowQueue(void);
 
 private:
     static CShmQueue* m_pInstance;
@@ -57,7 +64,8 @@ private:
     // max queue msg size: 256 bytes
     static const uint32_t SHM_QUEUE_MSG_MAX_SIZE = 256; 
     static const uint32_t SHM_QUEUE_BUF_SIZE = 1 * 1024 * 1024; // 1Mb
-
+    static const uint32_t SHM_QUEUE_TOTAL_SIZE = SHM_QUEUE_BUF_SIZE + sizeof(TShmHead);
+        
     void*       m_ptr;
     bool        m_isAttach;
 };

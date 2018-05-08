@@ -29,11 +29,22 @@ CShmQueue::~CShmQueue()
 
 }
 
-int32_t CShmQueue::CreatShm(uint32_t size)
+void CShmQueue::ShowQueue(void)
 {
-    if (size > SHM_QUEUE_BUF_SIZE)
+    TShmHead* p = (TShmHead*)m_ptr;
+    printf("- - - - - - - - - - - - - - - QUEUE_STATUS_START - - - - - - - - - - - - - - - \n");
+    printf("Queue total size: %lu\n", p->queueSize + sizeof(TShmHead));
+    printf("Queue queue size: %u\n", p->queueSize);
+    printf("Queue head   pos: %d\n", p->head);
+    printf("Queue tail   pos: %d\n", p->tail);
+    printf("- - - - - - - - - - - - - - - QUEUE_STATUS_END - - - - - - - - - - - - - - - - \n");
+}
+
+int32_t CShmQueue::CreateShm(uint32_t size)
+{
+    if (size > SHM_QUEUE_TOTAL_SIZE)
     {
-        printf("shm size=%d large than queue max size=%d\n", size, SHM_QUEUE_BUF_SIZE);
+        printf("shm size=%d large than queue max size=%d\n", size, SHM_QUEUE_TOTAL_SIZE);
         return SHM_ERROR;
     }
 
@@ -41,10 +52,15 @@ int32_t CShmQueue::CreatShm(uint32_t size)
     if (NULL == m_ptr)
     {
         return SHM_ERROR;
-    }
+    }    
+
+    // init shm head once
+    TShmHead* p = (TShmHead*)m_ptr;
+    p->head = 0;
+    p->tail = 0;
+    p->queueSize = size - sizeof(TShmHead);
 
     // mutex lock init once
-    TShmHead* p = (TShmHead*)m_ptr;        
     if (SHM_OK != CShmAlloc::InitLock(&p->mlock))
     {
         m_isAttach = false;
@@ -69,6 +85,7 @@ int32_t CShmQueue::AttachShm(void)
         return SHM_ERROR;
     }
 
+    // mutex lock init once
     TShmHead* p = (TShmHead*)m_ptr;
     if (SHM_OK != CShmAlloc::InitLock(&p->mlock))
     {

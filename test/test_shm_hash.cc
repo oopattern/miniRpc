@@ -23,7 +23,7 @@ public:
     static void TestAbortShm(long long times);
     static void TestModifyShm(long long times);
     static void TestShmMutex(int threadNum, long long times);
-    static void TestShmCapacity();
+    static void TestShmCapacity(void);
     static void TestReadShmTPS(void);
 };
 
