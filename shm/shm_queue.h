@@ -45,10 +45,13 @@ private:
     // shm head
     typedef struct _tShmHead
     {
-        TMutex      mlock;
+        // should reserve some space for future use
+        TMutex      mlock;// use for mutex lock 
         uint32_t    head; // start from queue
         uint32_t    tail; // end with queue + queueSize
-        uint32_t    queueSize;
+        uint32_t    queueCount; // msg count
+        uint32_t    queueSize; // size of queue
+        uint8_t     reserve[64]; // reserve for shm head
         uint8_t     queue[0];
     } TShmHead;
 

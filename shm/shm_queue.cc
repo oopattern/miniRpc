@@ -35,6 +35,7 @@ void CShmQueue::ShowQueue(void)
     printf("- - - - - - - - - - - - - - - QUEUE_STATUS_START - - - - - - - - - - - - - - - \n");
     printf("Queue total size: %lu\n", p->queueSize + sizeof(TShmHead));
     printf("Queue queue size: %u\n", p->queueSize);
+    printf("Queue  msg count: %u\n", p->queueCount);
     printf("Queue head   pos: %d\n", p->head);
     printf("Queue tail   pos: %d\n", p->tail);
     printf("- - - - - - - - - - - - - - - QUEUE_STATUS_END - - - - - - - - - - - - - - - - \n");
@@ -58,6 +59,7 @@ int32_t CShmQueue::CreateShm(uint32_t size)
     TShmHead* p = (TShmHead*)m_ptr;
     p->head = 0;
     p->tail = 0;
+    p->queueCount = 0;
     p->queueSize = size - sizeof(TShmHead);
 
     // mutex lock init once
@@ -127,6 +129,7 @@ int32_t CShmQueue::Push(const void* buf, uint32_t len)
     uint32_t tail = pShm->tail;
     uint32_t queueSize = pShm->queueSize;
     uint32_t nodeLen = len + sizeof(TShmNode); // include node head
+    assert((head <= queueSize) && (tail <= queueSize));
 
     // head == tail means empty
     // head < tail means write not reach queue end yet
@@ -173,6 +176,7 @@ int32_t CShmQueue::Push(const void* buf, uint32_t len)
         {
             success = false;
             printf("head > tail shm queue push not enough space error\n");
+            ShowQueue();
         }        
     }
 
@@ -187,6 +191,7 @@ int32_t CShmQueue::Push(const void* buf, uint32_t len)
         // pushPos is the right position, not tail
         // add nodeLen, should include node head
         pShm->tail = pushPos + nodeLen;
+        pShm->queueCount++;
     }
 
     CShmAlloc::UnlockShm(&pShm->mlock);
@@ -202,11 +207,13 @@ int32_t CShmQueue::Pop(void* buf, uint32_t* len)
         return SHM_ERROR;
     }
 
+#if 0
     if (true == IsEmpty())
     {
-        printf("shm queue is empty, pop failed\n");
+        //printf("shm queue is empty, pop failed\n");
         return SHM_ERROR;
     }
+#endif    
 
     TShmHead* pShm = (TShmHead*)m_ptr;
 
@@ -218,6 +225,14 @@ int32_t CShmQueue::Pop(void* buf, uint32_t* len)
     uint32_t queueSize = pShm->queueSize;
 
     assert((head <= queueSize) && (tail <= queueSize));
+
+#if 1    
+    if (head == tail)
+    {
+        CShmAlloc::UnlockShm(&pShm->mlock);
+        return SHM_ERROR;
+    }
+#endif    
 
     // not enough space to get node head
     if ((head + sizeof(TShmNode)) > queueSize)
@@ -232,34 +247,41 @@ int32_t CShmQueue::Pop(void* buf, uint32_t* len)
     // end flag node, reset start position
     if (kEndFlagNode == pNode->type)
     {
-        printf("shm queue reach end flag node, please wrap round\n");
+        printf("shm queue node reach end flag node, please wrap round\n");
         head = 0;
         pNode = (TShmNode*)(pShm->queue + head);
+        ShowQueue();
     }
 
     // node type not match
     if (pNode->type != kDataNode)
     {
         success = false;
-        printf("[fatal] shm queue node type error, can not find node\n");
+        printf("[fatal] shm queue node type error, can not find node error\n");
+        ShowQueue();
     }
-    else
-    {
-        uint32_t bufsize = *len;
-        uint32_t datalen = pNode->len;
 
-        if (datalen > bufsize)
+    // node size too large
+    uint32_t bufsize = *len;
+    uint32_t datalen = pNode->len;
+    if (datalen > bufsize)
+    {
+        success = false;
+        printf("shm queue pop node size=%d large than buf size=%d error\n", datalen, bufsize);
+        ShowQueue();
+    }
+
+    if (true == success)
+    {
+        // pop node data
+        ::memcpy(buf, pNode->data, datalen);
+        *len = datalen;    
+        
+        // update shm queue head position
+        pShm->head = head + sizeof(TShmNode) + datalen;    
+        if (pShm->queueCount > 0)
         {
-            success = false;
-            printf("shm queue pop node size=%d large than buf size=%d error\n", datalen, bufsize);
-        }
-        else
-        {
-            // pop node data
-            ::memcpy(buf, pNode->data, datalen);
-            *len = datalen;    
-            // update shm queue head position
-            pShm->head = head + sizeof(TShmNode) + datalen;
+            pShm->queueCount--;        
         }
     }
 
@@ -282,6 +304,13 @@ bool CShmQueue::IsEmpty(void)
         return false;
     }
 
+    // when access shm, should use lock to protect
+    // otherwise other thread will get wrong value    
     TShmHead* p = (TShmHead*)m_ptr;
-    return (p->head == p->tail);
+
+    CShmAlloc::LockShm(&p->mlock);
+    bool ret = (p->head == p->tail);
+    CShmAlloc::UnlockShm(&p->mlock);
+
+    return ret;
 }

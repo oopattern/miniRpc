@@ -1,14 +1,154 @@
 #include <stdio.h>
 #include <string>
+#include "../public.h"
+#include "../thread.h"
 #include "../shm/shm_queue.h"
 
 using namespace std;
+
+const uint32_t QUEUE_THREAD_NUM = 3;
+const uint32_t LOOP_TIME = MILLION;
+const char* s_task_end = "QUEUE_TASK_END";
+const char* s_rand_content[] = 
+{
+    "Business is business.",
+    "Tomorrow comes never.",
+    "No root, no fruit.",
+    "Time flies.",
+    "No one can call back yesterday, Yesterday will not be called again.",
+    "Have you somewhat to do tomorrow, do it today.",
+    "Time tames the strongest grief.",
+    "When an opportunity is neglected, it never comes back to you.",
+    "If you want knowledge, you must toil for it.",
+    "Doubt is the key of knowledge.",
+    "Practice makes perfect.",
+    "Wit once bought is worth twice taught."
+};
+const uint32_t ELEMENT = sizeof(s_rand_content) / sizeof(s_rand_content[0]);
+
 
 class CTestQueue
 {
 public:
     static void TestQueueCapacity(void);
+    static void TestQueuePush(void);
+    static void TestQueuePop(void);
+    static void TestQueueTPS(void);
+    static void PopTask(void);
 };
+
+void CTestQueue::PopTask(void)
+{
+    g_pShmQueue->AttachShm();
+
+    while (1)
+    {
+        char buf[256];
+        uint32_t len = sizeof(buf);
+        
+        if (SHM_OK != g_pShmQueue->Pop(buf, &len))
+        {
+            //printf("Pop task waitting for pop\n");
+            //::sleep(1);
+            continue;
+        }
+        assert(len < sizeof(buf));
+        buf[len] = '\0';
+
+        if (0 == ::strcmp(buf, s_task_end))
+        {
+            printf("tid=%d finish, quit safely\n", CThread::Tid());
+            return;
+        }
+    }
+}
+
+void CTestQueue::TestQueueTPS(void)
+{
+    g_pShmQueue->AttachShm();
+    g_pShmQueue->ShowQueue();
+
+    // worker pthread just pop message from queue
+    CThreadPool pool(QUEUE_THREAD_NUM, std::bind(PopTask));
+    pool.StartAll();
+
+    // main pthread just push message into queue
+    uint32_t cnt = 0;
+    while (cnt < LOOP_TIME)
+    {
+        uint32_t idx = ::rand() % ELEMENT;
+        uint32_t len = ::strlen(s_rand_content[idx]);
+        if (SHM_OK != g_pShmQueue->Push(s_rand_content[idx], len))
+        {
+            ::usleep(5000);
+            continue;
+        }
+        cnt++;
+        //printf("shm queue push: %s\n", s_rand_content[idx]);
+    }
+
+    printf("main pthread=%d push finish\n", CThread::Tid());
+
+    // main pthread add end flag    
+    cnt = 0;
+    while (cnt < QUEUE_THREAD_NUM)
+    {
+        if (SHM_OK != g_pShmQueue->Push(s_task_end, ::strlen(s_task_end)))
+        {
+            ::usleep(5000);
+            printf("check out...........\n");
+            continue;
+        }
+        cnt++;
+    }
+
+    pool.JoinAll();
+
+    g_pShmQueue->ShowQueue();
+}
+
+void CTestQueue::TestQueuePop(void)
+{
+    g_pShmQueue->AttachShm();
+
+    while (1)
+    {
+        char pop[256];
+        uint32_t len = sizeof(pop);
+
+        if (SHM_OK != g_pShmQueue->Pop(pop, &len))
+        {
+            break;
+        }        
+        assert(len < sizeof(pop));
+        pop[len] = '\0';
+        printf("shm queue pop data: %s\n", pop);
+    }
+
+    g_pShmQueue->ShowQueue();
+}
+
+// mutli-write-one-read
+void CTestQueue::TestQueuePush(void)
+{
+    g_pShmQueue->AttachShm();
+
+    // main pthread push content
+    uint32_t cnt = 0;
+    while (cnt < LOOP_TIME)
+    {
+        uint32_t idx = ::rand() % ELEMENT;
+        uint32_t len = ::strlen(s_rand_content[idx]);
+        if (SHM_OK != g_pShmQueue->Push(s_rand_content[idx], len))
+        {
+            break;
+        }
+        printf("shm queue push data: %s\n", s_rand_content[idx]);
+        cnt++;
+    }
+
+    g_pShmQueue->ShowQueue();
+}
 
 void CTestQueue::TestQueueCapacity(void)
 {

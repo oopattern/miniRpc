@@ -34,7 +34,10 @@ int main(void)
     //CTestHash::TestReadShmTPS();
     //CTestHash::TestShmMutex(THREAD_NUM, QUERY_TIME);
     //CTestHash::TestThreadAbort();
-    CTestQueue::TestQueueCapacity();
+    //CTestQueue::TestQueueCapacity();
+    //CTestQueue::TestQueuePush();
+    //CTestQueue::TestQueuePop();
+    CTestQueue::TestQueueTPS();
     printf("shm test finish.\n");
     return 0;
 }

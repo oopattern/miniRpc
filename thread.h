@@ -1,3 +1,6 @@
+#ifndef __THREAD_H
+#define __THREAD_H
+
 #include <stdio.h>
 #include <functional> // c++11
 #include <pthread.h>
@@ -42,3 +45,5 @@ private:
     pthread_t   m_pthreadId;
     ThreadFunc  m_func;
 };
+
+#endif // __THREAD_H
