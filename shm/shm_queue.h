@@ -3,23 +3,22 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#include <pthread.h>
 #include "shm_alloc.h"
 
 // define global
-#define g_pShmQueue     CShmQueue::Instance()
+#define g_shmQueue      Singleton<CShmQueue>::Instance()
 
 
 // operate shm
 class CShmQueue
 {
 public:
-    static CShmQueue* Instance(void);
+    CShmQueue();
+    ~CShmQueue();
 
-    // create operation
-    int32_t CreateShm(uint32_t size = SHM_QUEUE_TOTAL_SIZE);
-    int32_t AttachShm(void);
-
+    // create or attach operation
+    int32_t InitQueue(uint8_t alloc, bool bCreat, uint32_t size = SHM_QUEUE_TOTAL_SIZE);
+    
     // push and pop operation
     int32_t Push(const void* buf, uint32_t len);
     int32_t Pop(void* buf, uint32_t* len);
@@ -27,9 +26,8 @@ public:
     void ShowQueue(void);
 
 private:
-    static CShmQueue* m_pInstance;
-    CShmQueue();
-    ~CShmQueue();
+    int32_t CreateShm(uint32_t size = SHM_QUEUE_TOTAL_SIZE);
+    int32_t AttachShm(void);
 
 private:
     enum E_NodeType
@@ -70,8 +68,9 @@ private:
     static const uint32_t SHM_QUEUE_BUF_SIZE = 1 * 1024 * 1024; // 1Mb
     static const uint32_t SHM_QUEUE_TOTAL_SIZE = SHM_QUEUE_BUF_SIZE + sizeof(TShmHead);
         
-    void*       m_ptr;
-    bool        m_isAttach;
+    void*       m_ptr;      // shm start addr
+    bool        m_isAttach; // shm attach status
+    uint8_t     m_alloc;    // alloc type, SVIPC or POSIX
 };
 
 #endif // __SHM_QUEUE_H

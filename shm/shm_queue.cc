@@ -7,21 +7,11 @@
 
 static const char* MMAP_QUEUE = "POSIX_MMAP_QUEUE";
 
-CShmQueue* CShmQueue::m_pInstance = NULL;
-
-CShmQueue* CShmQueue::Instance(void)
-{
-    if (NULL == m_pInstance)
-    {
-        m_pInstance = new CShmQueue();
-    }
-    return m_pInstance;
-}
-
 CShmQueue::CShmQueue()
 {
     m_ptr = NULL;
     m_isAttach = false;
+    m_alloc = POSIX;
 }
 
 CShmQueue::~CShmQueue()
@@ -41,19 +31,41 @@ void CShmQueue::ShowQueue(void)
     printf("- - - - - - - - - - - - - - - QUEUE_STATUS_END - - - - - - - - - - - - - - - - \n");
 }
 
+// create shm or attach shm
+int32_t CShmQueue::InitQueue(uint8_t alloc, bool bCreat, uint32_t size)
+{
+    m_alloc = alloc;
+    
+    if (false == bCreat)
+    {
+        return AttachShm();
+    }
+
+    return CreateShm(size);
+}
+
 int32_t CShmQueue::CreateShm(uint32_t size)
 {
     if (size > SHM_QUEUE_TOTAL_SIZE)
     {
         printf("shm size=%d large than queue max size=%d\n", size, SHM_QUEUE_TOTAL_SIZE);
-        return SHM_ERROR;
+        return SHM_ERROR;        
     }
 
-    m_ptr = CShmAlloc::PosixCreate(MMAP_QUEUE, size);
-    if (NULL == m_ptr)
+    // choose alloc type
+    if (POSIX == m_alloc)
     {
+        m_ptr = CShmAlloc::PosixCreate(MMAP_QUEUE, size);
+        if (NULL == m_ptr)
+        {
+            return SHM_ERROR;
+        }
+    }
+    else 
+    {
+        printf("create shm queue alloc type error\n");
         return SHM_ERROR;
-    }    
+    }
 
     // init shm head once
     TShmHead* p = (TShmHead*)m_ptr;
@@ -69,6 +81,7 @@ int32_t CShmQueue::CreateShm(uint32_t size)
         return SHM_ERROR;
     }
 
+    // mark attach status
     m_isAttach = true;
     return SHM_OK;
 }
@@ -81,9 +94,18 @@ int32_t CShmQueue::AttachShm(void)
         return SHM_OK;
     }
 
-    m_ptr = CShmAlloc::PosixAttach(MMAP_QUEUE);
-    if (NULL == m_ptr)
+    // choose alloc type
+    if (POSIX == m_alloc)
     {
+        m_ptr = CShmAlloc::PosixAttach(MMAP_QUEUE);
+        if (NULL == m_ptr)
+        {
+            return SHM_ERROR;
+        }
+    }
+    else
+    {
+        printf("attach shm queue alloc type error\n");
         return SHM_ERROR;
     }
 

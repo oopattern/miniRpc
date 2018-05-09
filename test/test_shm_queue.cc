@@ -39,14 +39,14 @@ public:
 
 void CTestQueue::PopTask(void)
 {
-    g_pShmQueue->AttachShm();
+    g_shmQueue.InitQueue(POSIX, false);
 
     while (1)
     {
         char buf[256];
         uint32_t len = sizeof(buf);
         
-        if (SHM_OK != g_pShmQueue->Pop(buf, &len))
+        if (SHM_OK != g_shmQueue.Pop(buf, &len))
         {
             //printf("Pop task waitting for pop\n");
             //::sleep(1);
@@ -68,8 +68,8 @@ void CTestQueue::TestQueueTPS(void)
 {
     printf("Test Queue TPS start time: %s\n", CUtils::GetCurrentTime());
 
-    g_pShmQueue->AttachShm();
-    g_pShmQueue->ShowQueue();
+    g_shmQueue.InitQueue(POSIX, false);
+    g_shmQueue.ShowQueue();
 
     // worker pthread just pop message from queue
     CThreadPool pool(QUEUE_THREAD_NUM, std::bind(PopTask));
@@ -81,7 +81,7 @@ void CTestQueue::TestQueueTPS(void)
     {
         uint32_t idx = ::rand() % ELEMENT;
         uint32_t len = ::strlen(s_rand_content[idx]);
-        if (SHM_OK != g_pShmQueue->Push(s_rand_content[idx], len))
+        if (SHM_OK != g_shmQueue.Push(s_rand_content[idx], len))
         {
             ::usleep(5000);
             continue;
@@ -95,7 +95,7 @@ void CTestQueue::TestQueueTPS(void)
     cnt = 0;
     while (cnt < QUEUE_THREAD_NUM)
     {
-        if (SHM_OK != g_pShmQueue->Push(s_task_end, ::strlen(s_task_end)))
+        if (SHM_OK != g_shmQueue.Push(s_task_end, ::strlen(s_task_end)))
         {
             ::usleep(5000);
             printf("check out...........\n");
@@ -106,21 +106,21 @@ void CTestQueue::TestQueueTPS(void)
 
     pool.JoinAll();
 
-    g_pShmQueue->ShowQueue();
+    g_shmQueue.ShowQueue();
 
     printf("Test Queue TPS   end time: %s\n", CUtils::GetCurrentTime());
 }
 
 void CTestQueue::TestQueuePop(void)
 {
-    g_pShmQueue->AttachShm();
+    g_shmQueue.InitQueue(POSIX, false);
 
     while (1)
     {
         char pop[256];
         uint32_t len = sizeof(pop);
 
-        if (SHM_OK != g_pShmQueue->Pop(pop, &len))
+        if (SHM_OK != g_shmQueue.Pop(pop, &len))
         {
             break;
         }        
@@ -129,13 +129,13 @@ void CTestQueue::TestQueuePop(void)
         printf("shm queue pop data: %s\n", pop);
     }
 
-    g_pShmQueue->ShowQueue();
+    g_shmQueue.ShowQueue();
 }
 
 // mutli-write-one-read
 void CTestQueue::TestQueuePush(void)
 {
-    g_pShmQueue->AttachShm();
+    g_shmQueue.InitQueue(POSIX, false);
 
     // main pthread push content
     uint32_t cnt = 0;
@@ -143,7 +143,7 @@ void CTestQueue::TestQueuePush(void)
     {
         uint32_t idx = ::rand() % ELEMENT;
         uint32_t len = ::strlen(s_rand_content[idx]);
-        if (SHM_OK != g_pShmQueue->Push(s_rand_content[idx], len))
+        if (SHM_OK != g_shmQueue.Push(s_rand_content[idx], len))
         {
             break;
         }
@@ -151,7 +151,7 @@ void CTestQueue::TestQueuePush(void)
         cnt++;
     }
 
-    g_pShmQueue->ShowQueue();
+    g_shmQueue.ShowQueue();
 }
 
 void CTestQueue::TestQueueCapacity(void)
@@ -159,21 +159,21 @@ void CTestQueue::TestQueueCapacity(void)
     std::string push = "hello oopattern";
     char pop[256];
 
-    if (SHM_OK != g_pShmQueue->CreateShm())    
+    if (SHM_OK != g_shmQueue.InitQueue(POSIX, true))    
     {
         printf("shm queue create error\n");
         return;
     }
 
     printf("shm queue push: %s\n", push.c_str());
-    if (SHM_OK != g_pShmQueue->Push(push.c_str(), push.size()))
+    if (SHM_OK != g_shmQueue.Push(push.c_str(), push.size()))
     {
         printf("shm queue push error\n");
         return;
     }
 
     uint32_t maxsize = sizeof(pop);
-    if (SHM_OK != g_pShmQueue->Pop(pop, &maxsize))
+    if (SHM_OK != g_shmQueue.Pop(pop, &maxsize))
     {
         printf("shm queue pop error\n");
         return;
@@ -188,6 +188,6 @@ void CTestQueue::TestQueueCapacity(void)
         return;
     }
 
-    g_pShmQueue->ShowQueue();
+    g_shmQueue.ShowQueue();
 }
 
