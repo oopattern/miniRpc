@@ -7,7 +7,7 @@
 using namespace std;
 
 const uint32_t QUEUE_THREAD_NUM = 3;
-const uint32_t LOOP_TIME = MILLION;
+const uint32_t LOOP_TIME = 1*MILLION;
 const char* s_task_end = "QUEUE_TASK_END";
 const char* s_rand_content[] = 
 {
@@ -63,8 +63,11 @@ void CTestQueue::PopTask(void)
     }
 }
 
+// one-write-mutli-read
 void CTestQueue::TestQueueTPS(void)
 {
+    printf("Test Queue TPS start time: %s\n", CUtils::GetCurrentTime());
+
     g_pShmQueue->AttachShm();
     g_pShmQueue->ShowQueue();
 
@@ -84,10 +87,9 @@ void CTestQueue::TestQueueTPS(void)
             continue;
         }
         cnt++;
-        //printf("shm queue push: %s\n", s_rand_content[idx]);
     }
 
-    printf("main pthread=%d push finish\n", CThread::Tid());
+    printf("main pthread=%d push finish time: %s\n", CThread::Tid(), CUtils::GetCurrentTime());
 
     // main pthread add end flag    
     cnt = 0;
@@ -105,6 +107,8 @@ void CTestQueue::TestQueueTPS(void)
     pool.JoinAll();
 
     g_pShmQueue->ShowQueue();
+
+    printf("Test Queue TPS   end time: %s\n", CUtils::GetCurrentTime());
 }
 
 void CTestQueue::TestQueuePop(void)

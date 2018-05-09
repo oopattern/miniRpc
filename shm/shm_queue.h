@@ -32,10 +32,6 @@ private:
     ~CShmQueue();
 
 private:
-    bool IsFull(void);
-    bool IsEmpty(void);
-
-private:
     enum E_NodeType
     {
         kDataNode = 1,
@@ -46,22 +42,27 @@ private:
     typedef struct _tShmHead
     {
         // should reserve some space for future use
-        TMutex      mlock;// use for mutex lock 
-        uint32_t    head; // start from queue
-        uint32_t    tail; // end with queue + queueSize
+        TMutex      mlock;      // use for mutex lock 
+        uint32_t    head;       // start from queue
+        uint32_t    tail;       // end with queue + queueSize
         uint32_t    queueCount; // msg count
-        uint32_t    queueSize; // size of queue
-        uint8_t     reserve[64]; // reserve for shm head
+        uint8_t     reserve[64];// reserve for shm head
+        uint32_t    queueSize;  // size of queue
         uint8_t     queue[0];
     } TShmHead;
 
     // shm node, not fix length
     typedef struct _tShmNode
     {
-        uint8_t  type;   // data node or end node
-        uint32_t len;    // data len
-        uint8_t  data[0];// data addr
+        uint16_t tag;        // node start tag, means it's a node
+        uint8_t  type;       // data node or end node
+        uint8_t  reserve[16];// data node reserve, use for crc later maybe, to check data completely
+        uint32_t len;        // data len
+        uint8_t  data[0];    // data addr
     } TShmNode;
+
+    // node start tag
+    static const uint16_t kStartTag = 0x9BEB;
 
 private:
     // max queue msg size: 256 bytes
