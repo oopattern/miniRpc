@@ -17,6 +17,13 @@ enum Alloc
     SVIPC = 2  // systemV way, use shmget
 };
 
+// lock type for shm, mutex lock or atomic
+enum LockType
+{
+    LOCK_MUTEX = 1, // mutex lock
+    LOCK_ATOMIC = 2   // gcc atomic, lock free
+};
+
 // mutex lock info
 typedef struct _tMutexLock
 {

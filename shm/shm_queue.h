@@ -17,7 +17,10 @@ public:
     ~CShmQueue();
 
     // create or attach operation
-    int32_t InitQueue(uint8_t alloc, bool bCreat, uint32_t size = SHM_QUEUE_TOTAL_SIZE);
+    int32_t InitQueue(  uint8_t allocType = POSIX, 
+                        uint8_t lockType = LOCK_MUTEX, 
+                        bool bCreat = false, 
+                        uint32_t size = SHM_QUEUE_TOTAL_SIZE);
     
     // push and pop operation
     int32_t Push(const void* buf, uint32_t len);
@@ -26,10 +29,18 @@ public:
     void ShowQueue(void);
 
 private:
+    // shm operation
     int32_t CreateShm(uint32_t size = SHM_QUEUE_TOTAL_SIZE);
     int32_t AttachShm(void);
 
+    // lock operation
+    void Lock(void);
+    void Unlock(void);
+
 private:
+    // shm queue must add end node, otherwise when head reach queue nearly,
+    // if not add end node, it will read the wrong info of node head
+    // if not enough space to hold end node, just skip the rest space and wrap round again
     enum E_NodeType
     {
         kDataNode = 1,
@@ -41,6 +52,7 @@ private:
     {
         // should reserve some space for future use
         TMutex      mlock;      // use for mutex lock 
+        uint8_t     access;     // atomic, lock free
         uint32_t    head;       // start from queue
         uint32_t    tail;       // end with queue + queueSize
         uint32_t    queueCount; // msg count
@@ -70,7 +82,8 @@ private:
         
     void*       m_ptr;      // shm start addr
     bool        m_isAttach; // shm attach status
-    uint8_t     m_alloc;    // alloc type, SVIPC or POSIX
+    uint8_t     m_allocType;// alloc type, SVIPC or POSIX
+    uint8_t     m_lockType; // lock type, mutex or atomic
 };
 
 #endif // __SHM_QUEUE_H

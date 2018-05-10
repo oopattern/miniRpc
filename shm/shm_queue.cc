@@ -6,12 +6,18 @@
 
 
 static const char* MMAP_QUEUE = "POSIX_MMAP_QUEUE";
+static const int64_t ATOMIC_MAX_LOOP = 100000000L;
+
+// just for test
+uint8_t g_allocType = POSIX;
+uint8_t g_lockType = LOCK_ATOMIC;
 
 CShmQueue::CShmQueue()
 {
     m_ptr = NULL;
     m_isAttach = false;
-    m_alloc = POSIX;
+    m_allocType = POSIX;
+    m_lockType = LOCK_MUTEX;
 }
 
 CShmQueue::~CShmQueue()
@@ -31,10 +37,54 @@ void CShmQueue::ShowQueue(void)
     printf("- - - - - - - - - - - - - - - QUEUE_STATUS_END - - - - - - - - - - - - - - - - \n");
 }
 
-// create shm or attach shm
-int32_t CShmQueue::InitQueue(uint8_t alloc, bool bCreat, uint32_t size)
+void CShmQueue::Lock(void)
 {
-    m_alloc = alloc;
+    TShmHead* p = (TShmHead*)m_ptr;
+    if (LOCK_MUTEX == m_lockType)
+    {
+        CShmAlloc::LockShm(&p->mlock);    
+    }
+    else
+    {
+        int64_t tmp = 0;
+        while (! ::__sync_bool_compare_and_swap(&p->access, 0, 1))
+        {
+            tmp++;
+
+            // may be other pthread coredump, should try to release atomic
+            if (tmp >= ATOMIC_MAX_LOOP)
+            {                
+                printf("[Fatal Error] tid=%d atomic shm dead, try to release atomic\n", CThread::Tid());
+                // reset atomic, shm head and tail, recover data
+                ::__sync_lock_test_and_set(&p->access, 1);
+                p->head = 0;
+                p->tail = 0;
+                p->queueCount = 0;
+                printf("[Fatal Error] recover shm head and tail position\n");
+                break;
+            }
+        }
+    }
+}
+
+void CShmQueue::Unlock(void)
+{
+    TShmHead* p = (TShmHead*)m_ptr;
+    if (LOCK_MUTEX == m_lockType)
+    {
+        CShmAlloc::UnlockShm(&p->mlock);    
+    }
+    else
+    {
+        ::__atomic_fetch_sub(&p->access, 1, __ATOMIC_RELEASE);
+    }
+}
+
+// create shm or attach shm
+int32_t CShmQueue::InitQueue(uint8_t allocType, uint8_t lockType, bool bCreat, uint32_t size)
+{
+    m_allocType = g_allocType;
+    m_lockType = g_lockType;
     
     if (false == bCreat)
     {
@@ -53,7 +103,7 @@ int32_t CShmQueue::CreateShm(uint32_t size)
     }
 
     // choose alloc type
-    if (POSIX == m_alloc)
+    if (POSIX == m_allocType)
     {
         m_ptr = CShmAlloc::PosixCreate(MMAP_QUEUE, size);
         if (NULL == m_ptr)
@@ -75,11 +125,18 @@ int32_t CShmQueue::CreateShm(uint32_t size)
     p->queueSize = size - sizeof(TShmHead);
 
     // mutex lock init once
-    if (SHM_OK != CShmAlloc::InitLock(&p->mlock))
+    if (LOCK_MUTEX == m_lockType)
     {
-        m_isAttach = false;
-        return SHM_ERROR;
+        if (SHM_OK != CShmAlloc::InitLock(&p->mlock))
+        {
+            m_isAttach = false;
+            return SHM_ERROR;
+        }
     }
+    else
+    {
+        printf("Init lock use atomic...\n");   
+    }    
 
     // mark attach status
     m_isAttach = true;
@@ -95,7 +152,7 @@ int32_t CShmQueue::AttachShm(void)
     }
 
     // choose alloc type
-    if (POSIX == m_alloc)
+    if (POSIX == m_allocType)
     {
         m_ptr = CShmAlloc::PosixAttach(MMAP_QUEUE);
         if (NULL == m_ptr)
@@ -111,11 +168,18 @@ int32_t CShmQueue::AttachShm(void)
 
     // mutex lock init once
     TShmHead* p = (TShmHead*)m_ptr;
-    if (SHM_OK != CShmAlloc::InitLock(&p->mlock))
+    if (LOCK_MUTEX == m_lockType)
     {
-        m_isAttach = false;
-        return SHM_ERROR;
+        if (SHM_OK != CShmAlloc::InitLock(&p->mlock))
+        {
+            m_isAttach = false;
+            return SHM_ERROR;
+        }
     }
+    else
+    {
+        printf("Init lock use atomic...\n");
+    }    
 
     m_isAttach = true;
     return SHM_OK;
@@ -138,10 +202,9 @@ int32_t CShmQueue::Push(const void* buf, uint32_t len)
         return SHM_ERROR;
     }
 
+    Lock();
+
     TShmHead* pShm = (TShmHead*)m_ptr;
-
-    CShmAlloc::LockShm(&pShm->mlock);
-
     bool success = true;
     uint32_t pushPos = 0;
     uint32_t head = pShm->head;
@@ -214,7 +277,7 @@ int32_t CShmQueue::Push(const void* buf, uint32_t len)
         pShm->queueCount++;
     }
 
-    CShmAlloc::UnlockShm(&pShm->mlock);
+    Unlock();
 
     return ((true == success) ? (SHM_OK) : (SHM_ERROR));
 }
@@ -227,10 +290,9 @@ int32_t CShmQueue::Pop(void* buf, uint32_t* len)
         return SHM_ERROR;
     }
 
+    Lock();
+
     TShmHead* pShm = (TShmHead*)m_ptr;
-
-    CShmAlloc::LockShm(&pShm->mlock);
-
     bool success  = true;
     uint32_t head = pShm->head;
     uint32_t tail = pShm->tail;
@@ -241,7 +303,7 @@ int32_t CShmQueue::Pop(void* buf, uint32_t* len)
     // when access shm head info, should protect by mutex lock
     if (head == tail)
     {
-        CShmAlloc::UnlockShm(&pShm->mlock);
+        Unlock();
         return SHM_ERROR;
     }
 
@@ -294,7 +356,7 @@ int32_t CShmQueue::Pop(void* buf, uint32_t* len)
         }
     }
 
-    CShmAlloc::UnlockShm(&pShm->mlock);
+    Unlock();
 
     return ((true == success) ? (SHM_OK) : (SHM_ERROR));
 }

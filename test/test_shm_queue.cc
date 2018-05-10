@@ -39,7 +39,7 @@ public:
 
 void CTestQueue::PopTask(void)
 {
-    g_shmQueue.InitQueue(POSIX, false);
+    g_shmQueue.InitQueue(POSIX, LOCK_MUTEX, false);
 
     while (1)
     {
@@ -68,7 +68,7 @@ void CTestQueue::TestQueueTPS(void)
 {
     printf("Test Queue TPS start time: %s\n", CUtils::GetCurrentTime());
 
-    g_shmQueue.InitQueue(POSIX, false);
+    g_shmQueue.InitQueue(POSIX, LOCK_MUTEX, false);
     g_shmQueue.ShowQueue();
 
     // worker pthread just pop message from queue
@@ -113,7 +113,7 @@ void CTestQueue::TestQueueTPS(void)
 
 void CTestQueue::TestQueuePop(void)
 {
-    g_shmQueue.InitQueue(POSIX, false);
+    g_shmQueue.InitQueue(POSIX, LOCK_MUTEX, false);
 
     while (1)
     {
@@ -135,7 +135,7 @@ void CTestQueue::TestQueuePop(void)
 // mutli-write-one-read
 void CTestQueue::TestQueuePush(void)
 {
-    g_shmQueue.InitQueue(POSIX, false);
+    g_shmQueue.InitQueue(POSIX, LOCK_MUTEX, false);
 
     // main pthread push content
     uint32_t cnt = 0;
@@ -159,7 +159,7 @@ void CTestQueue::TestQueueCapacity(void)
     std::string push = "hello oopattern";
     char pop[256];
 
-    if (SHM_OK != g_shmQueue.InitQueue(POSIX, true))    
+    if (SHM_OK != g_shmQueue.InitQueue(POSIX, LOCK_MUTEX, true))    
     {
         printf("shm queue create error\n");
         return;
