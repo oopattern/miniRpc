@@ -36,6 +36,7 @@ class CShmHash
 {
 private:
     // shm node data
+    // each node can use atomic, since every node is unique, and every node position is fix
     typedef struct _tShmNode
     {
         bool    bUsed; // true: already used
