@@ -72,6 +72,10 @@ public:
     static void* PosixCreate(const char* name, uint32_t size);
     static void* PosixAttach(const char* name);
 
+    // SystemV mode
+    static void* SystemVCreate(int32_t key, uint32_t size);
+    static void* SystemVAttach(int32_t key);
+
     // lock operation
     static int32_t InitLock(TMutex* mlock);
     static void LockShm(TMutex* mlock);

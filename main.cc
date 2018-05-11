@@ -31,13 +31,13 @@ int main(void)
 {
     printf("hello world\n");    
     //CTestHash::TestShmCapacity();
-    //CTestHash::TestReadShmTPS();
+    CTestHash::TestReadShmTPS();
     //CTestHash::TestShmMutex(THREAD_NUM, QUERY_TIME);
     //CTestHash::TestThreadAbort();
     //CTestQueue::TestQueueCapacity();
     //CTestQueue::TestQueuePush();
     //CTestQueue::TestQueuePop();
-    CTestQueue::TestQueueTPS();
+    //CTestQueue::TestQueueTPS();
     printf("shm test finish.\n");
     return 0;
 }

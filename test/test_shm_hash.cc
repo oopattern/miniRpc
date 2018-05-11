@@ -35,7 +35,7 @@ void CTestHash::TestThreadAbort(void)
     int cnt = 0;
 
     // first attach shm
-    g_pShmHash->AttachShm();
+    g_pShmHash->InitShm(POSIX, LOCK_ATOMIC, false);
 
     // main pthread clear user data to zero
     user.uid = uid;
@@ -88,7 +88,7 @@ void CTestHash::TestReadShm(long long times)
     
     long long st = CUtils::TimeInMilliseconds();
 
-    g_pShmHash->AttachShm();   
+    g_pShmHash->InitShm(POSIX, LOCK_ATOMIC, false);   
     do 
     {
         uid = 2301 + idx;
@@ -126,7 +126,7 @@ void CTestHash::TestAbortShm(long long times)
 
     long long st = CUtils::TimeInMilliseconds();
 
-    g_pShmHash->AttachShm();
+    g_pShmHash->InitShm(POSIX, LOCK_ATOMIC, false);
     while (cnt < times)
     {
         // pthread will abort when operation reach times/3
@@ -149,7 +149,7 @@ void CTestHash::TestModifyShm(long long times)
 
     long long st = CUtils::TimeInMilliseconds();
 
-    g_pShmHash->AttachShm();
+    g_pShmHash->InitShm(POSIX, LOCK_ATOMIC, false);
     while (cnt < times)
     {
         // read and modify, different from ReadShm and WriteShm
@@ -172,7 +172,7 @@ void CTestHash::TestShmMutex(int threadNum, long long times)
     int cnt = 0;
 
     // first attach shm
-    g_pShmHash->AttachShm();
+    g_pShmHash->InitShm(POSIX, LOCK_ATOMIC, false);
 
     // main pthread read user data 
     g_pShmHash->ReadShm(uid, (char*)&user, sizeof(user));
@@ -216,7 +216,7 @@ void CTestHash::TestShmCapacity()
     user.money = 60000;
     snprintf(user.name, sizeof(user.name), "sakula");
 
-    if (g_pShmHash->CreateShm() != SHM_OK)
+    if (g_pShmHash->InitShm(POSIX, LOCK_ATOMIC, true) != SHM_OK)
     {
         return;
     }
@@ -258,7 +258,7 @@ void CTestHash::TestReadShmTPS(void)
     // for the same process, attach only init once
     // think of how to sync main pthread and work pthread, use condition-variable ???
     // temporary just use sleep
-    g_pShmHash->AttachShm();
+    g_pShmHash->InitShm(POSIX, LOCK_ATOMIC, false);
     ::sleep(1);
 
     // other threads need to operate shm, simulate full load of CPU

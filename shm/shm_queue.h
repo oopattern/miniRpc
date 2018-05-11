@@ -17,10 +17,10 @@ public:
     ~CShmQueue();
 
     // create or attach operation
-    int32_t InitQueue(  uint8_t allocType = POSIX, 
-                        uint8_t lockType = LOCK_MUTEX, 
-                        bool bCreat = false, 
-                        uint32_t size = SHM_QUEUE_TOTAL_SIZE);
+    int32_t InitShm( uint8_t allocType = POSIX, 
+                     uint8_t lockType = LOCK_MUTEX, 
+                     bool bCreat = false, 
+                     uint32_t size = SHM_QUEUE_TOTAL_SIZE);
     
     // push and pop operation
     int32_t Push(const void* buf, uint32_t len);

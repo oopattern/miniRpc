@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stdint.h> // uint32_t
 #include <unistd.h> // sleep
-#include <sys/shm.h>// shmget
 #include "shm_alloc.h"
 
 // define global
@@ -41,7 +40,7 @@ private:
     {
         bool    bUsed; // true: already used
         int32_t expireTime; // expire time arrived, delete the data
-        int32_t readAtomic; // atomic operation
+        int32_t access; // atomic operation
         KeyType key;
         ValType val;
     } TShmNode;
@@ -50,16 +49,17 @@ private:
     typedef struct _tShmHead
     {   
         TMutex      mlock; // mutex lock
-        int32_t     accessAtomic; // atomic operation
     } TShmHead;
 
 public:
     static CShmHash* Instance(void);
 
-    // create shm, use Posix mmap or SystemV shmget method, for shm server process
-    int32_t CreateShm(uint32_t size = SHM_SIZE);
-    // attach shm, for shm client process
-    int32_t AttachShm(void);
+    // create or attach shm operation
+    int32_t InitShm( uint8_t allocType = POSIX,
+                     uint8_t lockType = LOCK_MUTEX,
+                     bool bCreat = false,
+                     uint32_t size = SHM_SIZE);
+
     // uid: key
     int32_t ModifyShm(int32_t uid, int32_t chgVal);
     // uid: key, data: val
@@ -74,16 +74,16 @@ public:
     int32_t AbortShm(int32_t uid, int32_t chgVal, int32_t target);
 
 private:
-    // SystemV method
-    int32_t AtShm(void);
-    int32_t SystemVCreate(uint32_t size);
-    int32_t SystemVAttach(void);
+    // create shm, use Posix mmap or SystemV shmget method, for shm server process
+    int32_t CreateShm(uint32_t size = SHM_SIZE);
+    // attach shm, for shm client process
+    int32_t AttachShm(void);
 
     // lock operation
     int32_t InitLock(void);
+    void Lock(void);
+    void Unlock(void);
     bool IsLockShm(void);
-    void LockShm(void);
-    void UnlockShm(void);
     void AtomicLockNode(TShmNode* p);
     void AtomicUnlockNode(TShmNode* p);
 
@@ -107,7 +107,7 @@ private:
 
 private:
     static const int32_t SHM_KEY = 0x20180325; // unique shm key
-    static const int32_t SHM_SIZE = 1024 * 1024; // max shm size, 1Mb
+    static const int32_t SHM_SIZE = 1 * 1024 * 1024; // max shm size, 1Mb
     static const uint64_t HASH_BUCKET_MAX_SIZE = 10; // max prime count
     static const uint64_t HASH_INIT_PRIME = 1000; // produce prime under 1000
 
@@ -118,15 +118,12 @@ private:
     static const uint64_t SHM_HEAD_SIZE = sizeof(TShmHead);
     static const uint64_t SHM_NODE_SIZE = sizeof(TShmNode);
     
-    // if exsist will fault, pay attention to user mode, 
-    // otherwise delete shm will call permission deny
-    static const int32_t SHM_OPT = IPC_CREAT | IPC_EXCL | SHM_USER_MODE; 
-
     // shm identify
-    int32_t m_id; // inside id for shm
-    void*   m_ptr; // share memory addr
-    bool    m_isLock; // shm lock status
+    void*   m_ptr;      // share memory addr
+    bool    m_isLock;   // shm lock status
     bool    m_isAttach; // shm attach finish
+    uint8_t m_allocType;// shm alloc type, SystemV or Posix mode
+    uint8_t m_lockType; // shm lock type, mutex or atomic
     
     // hash prime table
     uint32_t m_bucketUsed;

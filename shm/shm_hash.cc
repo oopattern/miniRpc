@@ -10,11 +10,11 @@
 #include "../thread.h"
 
 // Posix-mmap method, default shm way, compare with SystemV-shmget method
-#define USE_MMAP    1
+static const uint8_t g_allocType = POSIX;
 // read-write concurrent sync way, default atomic, compare with mutex lock
 // for mutli-thread in a process, atomic may be the best way, TPS will be much higher
 // for mutli-process, mutex or atomic may be little difference
-#define USE_LOCK    1
+static const uint8_t g_lockType = LOCK_MUTEX;
 
 static const int32_t ATOMIC_COUNT = 2;
 static const int64_t ATOMIC_TRY_LIMIT = 200000000L;
@@ -37,10 +37,11 @@ CShmHash* CShmHash::Instance(void)
 
 CShmHash::CShmHash()
 {
-    m_id = -1;
     m_ptr = NULL;
     m_isLock = false;
     m_isAttach = false;
+    m_allocType = POSIX;
+    m_lockType = LOCK_MUTEX;
 
     memset(m_bucket, 0x0, sizeof(m_bucket));
     m_bucketUsed = 0;
@@ -73,17 +74,19 @@ void CShmHash::ShowShm(void)
     printf("- - - - - - - - - - - - - - - HASH_STATUS_END - - - - - - - - - - - - - - - - \n");
 }
 
-// shm create, SystemV method
-int32_t CShmHash::SystemVCreate(uint32_t size)
+int32_t CShmHash::InitShm(uint8_t allocType, uint8_t lockType, bool bCreat, uint32_t size)
 {
-    m_id = ::shmget(SHM_KEY, size, SHM_OPT);
-    if (m_id < 0)
+    // just for test
+    m_allocType = g_allocType;
+    m_lockType = g_lockType;
+    //m_allocType = allocType;
+    //m_lockType = lockType;
+
+    if (false == bCreat)
     {
-        printf("shmget error:%s\n", strerror(errno));
-        return SHM_ERROR;
+        return AttachShm();
     }
-    printf("create shmid=%d\n", m_id);
-    return AtShm();
+    return CreateShm(size);
 }
 
 int32_t CShmHash::CreateShm(uint32_t size)
@@ -94,32 +97,32 @@ int32_t CShmHash::CreateShm(uint32_t size)
         return SHM_ERROR;
     }
 
-#if (USE_MMAP)
-    m_ptr = CShmAlloc::PosixCreate(MMAP_HASH, size);
+    // Posix mode
+    if (POSIX == m_allocType)
+    {
+        m_ptr = CShmAlloc::PosixCreate(MMAP_HASH, size);
+    }
+    // SystemV mode
+    else
+    {
+        m_ptr = CShmAlloc::SystemVCreate(SHM_KEY, size);
+    }
+
     if (NULL == m_ptr)
     {
+        printf("Create shm alloc mode=%d error\n", m_allocType);
         return SHM_ERROR;
     }
+    
     // shm init lock, for process, just init once
-    int32_t ret = InitLock();
-    m_isAttach = ((SHM_OK == ret) ? true : false);
-    return ret;
-#else
-    return SystemVCreate(size);
-#endif
-}
-
-// attach shm, SystemV method
-int32_t CShmHash::SystemVAttach(void)
-{
-    m_id = ::shmget(SHM_KEY, 0, 0);
-    if (m_id < 0)
+    if (InitLock() != SHM_OK)
     {
-        printf("shmget error:%s\n", strerror(errno));
+        m_isAttach = false;
         return SHM_ERROR;
     }
-    printf("attach shmid=%d\n", m_id);
-    return AtShm();
+
+    m_isAttach = true;
+    return SHM_OK;
 }
 
 int32_t CShmHash::AttachShm(void)
@@ -130,10 +133,18 @@ int32_t CShmHash::AttachShm(void)
         return SHM_OK;
     }
 
-#if (USE_MMAP)
-    m_ptr = CShmAlloc::PosixAttach(MMAP_HASH);
+    if (POSIX == m_allocType)
+    {
+        m_ptr = CShmAlloc::PosixAttach(MMAP_HASH);
+    }
+    else
+    {
+        m_ptr = CShmAlloc::SystemVAttach(SHM_KEY);
+    }
+
     if (NULL == m_ptr)
     {
+        printf("Attach shm alloc mode=%d error\n", m_allocType);
         return SHM_ERROR;
     }
 
@@ -148,72 +159,74 @@ int32_t CShmHash::AttachShm(void)
     printf("tid=%d now attach shm=%p\n", CThread::Tid(), m_ptr);
     m_isAttach = true;
     return SHM_OK;
-#else
-    return SystemVAttach();
-#endif
 }
 
 int32_t CShmHash::InitLock(void)
 {
-#if (USE_LOCK)
-    TShmHead* p = (TShmHead*)m_ptr;
-    return CShmAlloc::InitLock(&p->mlock);
-#else
-    printf("InitLock use atomic...\n");
-    return SHM_OK;
-#endif    
-}
-
-void CShmHash::LockShm(void)
-{
-#if (USE_LOCK)    
-    TShmHead* p = (TShmHead*)m_ptr;    
-    CShmAlloc::LockShm(&p->mlock);
-    m_isLock = true; // order can not be wrong!
-#else 
-    // access hash table
-    TShmHead* p = (TShmHead*)m_ptr;
-    while (0 != (::__atomic_fetch_add(&p->accessAtomic, ATOMIC_COUNT, __ATOMIC_ACQUIRE) % 2))
-    {        
-        ::__atomic_fetch_sub(&p->accessAtomic, ATOMIC_COUNT, __ATOMIC_RELEASE);
-        printf("lock shm dead?\n");
+    if (LOCK_MUTEX == m_lockType)
+    {
+        TShmHead* p = (TShmHead*)m_ptr;
+        return CShmAlloc::InitLock(&p->mlock);
     }
-    m_isLock = true;
-#endif    
+    else
+    {
+        printf("InitLock use atomic...\n");
+    }    
+    return SHM_OK;
 }
 
-void CShmHash::UnlockShm(void)
+void CShmHash::Lock(void)
 {
-#if (USE_LOCK)    
-    m_isLock = false; // order can not be wrong!
-    TShmHead* p = (TShmHead*)m_ptr;
-    CShmAlloc::UnlockShm(&p->mlock);
-#else
-    m_isLock = false;
-    TShmHead* p = (TShmHead*)m_ptr;
-    ::__atomic_fetch_sub(&p->accessAtomic, ATOMIC_COUNT, __ATOMIC_RELEASE);
-#endif
+    // just for mutex lock
+    if (LOCK_MUTEX == m_lockType)
+    {
+        TShmHead* p = (TShmHead*)m_ptr;    
+        CShmAlloc::LockShm(&p->mlock);
+        m_isLock = true; // order can not be wrong!
+    }
+    // atomic not care about it
+    else
+    {
+        m_isLock = true;
+    }
+}
+
+void CShmHash::Unlock(void)
+{
+    // just for mutex lock
+    if (LOCK_MUTEX == m_lockType)
+    {
+        m_isLock = false; // order can not be wrong!
+        TShmHead* p = (TShmHead*)m_ptr;
+        CShmAlloc::UnlockShm(&p->mlock);
+    }
+    // atomic not care about it
+    else
+    {
+        m_isLock = false;
+    }
 }
 
 bool CShmHash::IsLockShm(void)
 {
-#if (USE_LOCK)    
-    return m_isLock;
-#else
-    return true;
-#endif    
+    // if it use atomic, just return true
+    return ((LOCK_MUTEX == m_lockType) ? m_isLock : true);
 }
 
 // just use for atomic way
 void CShmHash::AtomicLockNode(TShmNode* p)
 {
-#if (! USE_LOCK)    
+    if (m_lockType != LOCK_ATOMIC)
+    {
+        return;
+    }
+
     int64_t tmp = 0;
     static int64_t s_max_loop = 0;
 
     // replace_val: -1
     // expected_val: 0
-    while (! ::__sync_bool_compare_and_swap(&p->readAtomic, 0, -1))
+    while (! ::__sync_bool_compare_and_swap(&p->access, 0, -1))
     {
         // just calc max loop times will try to get atomic
         if (tmp > s_max_loop)
@@ -222,28 +235,28 @@ void CShmHash::AtomicLockNode(TShmNode* p)
         }
 
         // use CAS, process will try to get atomic until finish
-        printf("AtomicLockNode tid=%d, read_atomic=%d, tmp=%ld, s_max_loop=%ld\n", 
-                CThread::Tid(), p->readAtomic, tmp, s_max_loop);
+        //printf("AtomicLockNode tid=%d, read_atomic=%d, tmp=%ld, s_max_loop=%ld\n", CThread::Tid(), p->access, tmp, s_max_loop);
         
         tmp++;
         // if pthread atomic coredump suddenly, shm atomic var will not change
         // so we should check out by ourself, or will turn to be dead cycle...
         if (tmp >= ATOMIC_TRY_LIMIT)
         {
-            // why readAtomic should be set to -1, not other value ?
-            ::__sync_lock_test_and_set(&p->readAtomic, -1);
+            // why access should be set to -1, not other value ?
+            ::__sync_lock_test_and_set(&p->access, -1);
             printf("[Fatal Error] tid=%d AtomicLockNode shm dead, try to release atomic\n", CThread::Tid());
             break;
         }        
     }
-#endif    
 }
 
 void CShmHash::AtomicUnlockNode(TShmNode* p)
 {
-#if (! USE_LOCK)    
-    ::__atomic_fetch_add(&p->readAtomic, 1, __ATOMIC_RELEASE);
-#endif
+    if (m_lockType != LOCK_ATOMIC)
+    {
+        return;
+    }
+    ::__atomic_fetch_add(&p->access, 1, __ATOMIC_RELEASE);
 }
 
 // add   data: bCreat = true
@@ -305,13 +318,19 @@ int32_t CShmHash::ReadShm(int32_t uid, char* data, int32_t len)
     int32_t keylen = ll2string(key, 32, uid);
     uint32_t hashKey = CalcHashKey(key, keylen);
 
-    LockShm();
+    Lock();
 
     char* dst = GetNode(uid, hashKey, false);
     if (dst != NULL)
     {
+        // protect access shm node
+        AtomicLockNode((TShmNode*)dst);
+
         char* pVal = (char*)&(((TShmNode*)dst)->val);
         memcpy(data, pVal, len);
+
+        // release access shm node
+        AtomicUnlockNode((TShmNode*)dst);
     }
     else
     {
@@ -319,7 +338,7 @@ int32_t CShmHash::ReadShm(int32_t uid, char* data, int32_t len)
         exit(-1);
     }
 
-    UnlockShm();
+    Unlock();
 
     return ((dst != NULL) ? SHM_OK : SHM_ERROR);
 }
@@ -340,7 +359,7 @@ int32_t CShmHash::WriteShm(int32_t uid, const char* data, int32_t len, bool bCre
     int32_t keylen = ll2string(key, 32, uid);
     uint32_t hashKey = CalcHashKey(key, keylen);
 
-    LockShm();
+    Lock();
 
     // bCreat: true as add data, false as change data
     char* dst = GetNode(uid, hashKey, bCreat);
@@ -376,7 +395,7 @@ int32_t CShmHash::WriteShm(int32_t uid, const char* data, int32_t len, bool bCre
         exit(-1);
     }
 
-    UnlockShm();
+    Unlock();
 
     return ((dst != NULL) ? SHM_OK : SHM_ERROR);
 }
@@ -396,7 +415,7 @@ int32_t CShmHash::AbortShm(int32_t uid, int32_t chgVal, int32_t target)
     int32_t keylen = ll2string(key, 32, uid);
     uint32_t hashKey = CalcHashKey(key, keylen);
 
-    LockShm();
+    Lock();
 
     char* dst = GetNode(uid, hashKey, false);
     if (dst != NULL)
@@ -428,7 +447,7 @@ int32_t CShmHash::AbortShm(int32_t uid, int32_t chgVal, int32_t target)
         exit(-1);
     }
 
-    UnlockShm();
+    Unlock();
 
     return ((dst != NULL) ? SHM_OK : SHM_ERROR);
 }
@@ -445,7 +464,7 @@ int32_t CShmHash::ModifyShm(int32_t uid, int32_t chgVal)
     int32_t keylen = ll2string(key, 32, uid);
     uint32_t hashKey = CalcHashKey(key, keylen);
 
-    LockShm();
+    Lock();
 
     char* dst = GetNode(uid, hashKey, false);
     if (dst != NULL)
@@ -473,35 +492,9 @@ int32_t CShmHash::ModifyShm(int32_t uid, int32_t chgVal)
         exit(-1);
     }
 
-    UnlockShm();
+    Unlock();
 
     return ((dst != NULL) ? SHM_OK : SHM_ERROR);
-}
-
-int32_t CShmHash::AtShm(void)
-{
-    if (m_id < 0)
-    {
-        return SHM_ERROR;
-    }
-    
-    m_ptr = ::shmat(m_id, 0, 0);
-    if (m_ptr == (void*)-1)
-    {
-        printf("shmat error:%s\n", strerror(errno));
-        return SHM_ERROR;
-    }
-    
-    if (SHM_OK != InitLock())
-    {
-        printf("shmat InitLock error\n");
-        return SHM_ERROR;
-    }
-
-    m_isAttach = true;
-    printf("tid=%d now attach shm=%p\n", CThread::Tid(), m_ptr);
-    
-    return SHM_OK;
 }
 
 bool CShmHash::IsPrime(uint32_t value)
@@ -707,10 +700,4 @@ int32_t CShmHash::ll2string(char* dst, size_t dstlen, int64_t svalue)
     if (negative) dst[0] = '-';
     return length;
 }
-
-
-
-
-
-
 

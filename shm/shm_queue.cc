@@ -9,8 +9,8 @@ static const char* MMAP_QUEUE = "POSIX_MMAP_QUEUE";
 static const int64_t ATOMIC_MAX_LOOP = 100000000L;
 
 // just for test
-uint8_t g_allocType = POSIX;
-uint8_t g_lockType = LOCK_ATOMIC;
+static const uint8_t g_allocType = POSIX;
+static const uint8_t g_lockType = LOCK_ATOMIC;
 
 CShmQueue::CShmQueue()
 {
@@ -81,10 +81,13 @@ void CShmQueue::Unlock(void)
 }
 
 // create shm or attach shm
-int32_t CShmQueue::InitQueue(uint8_t allocType, uint8_t lockType, bool bCreat, uint32_t size)
+int32_t CShmQueue::InitShm(uint8_t allocType, uint8_t lockType, bool bCreat, uint32_t size)
 {
+    // just for test 
     m_allocType = g_allocType;
     m_lockType = g_lockType;
+    //m_allocType = allocType;
+    //m_lockType = lockType;
     
     if (false == bCreat)
     {

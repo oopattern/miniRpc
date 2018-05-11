@@ -4,10 +4,15 @@
 #include <string.h>  // memcpy
 #include <errno.h>   // errno
 #include <pthread.h> // mutex, pthread
+#include <sys/shm.h> // shmget
 #include <sys/mman.h>// mmap
 #include <unistd.h>  // sleep, ftruncate, close
 #include <sys/stat.h>// fstat
 #include "shm_alloc.h"
+
+// if exsist will fault, pay attention to user mode, 
+// otherwise delete shm will call permission deny
+static const int32_t SHM_OPT = IPC_CREAT | IPC_EXCL | SHM_USER_MODE;
 
 
 int32_t CShmAlloc::InitLock(TMutex* mlock)
@@ -142,6 +147,48 @@ void* CShmAlloc::PosixAttach(const char* name)
     // above if fail, will not close fd
     // code not finish...
     ::close(id);    
+
+    return ptr;
+}
+
+// shm create, SystemV method
+void* CShmAlloc::SystemVCreate(int32_t key, uint32_t size)
+{
+    int32_t id = ::shmget(key, size, SHM_OPT);
+    if (id < 0)
+    {
+        printf("shmget error:%s\n", strerror(errno));
+        return NULL;
+    }
+    printf("create shmid=%d\n", id);
+
+    void* ptr = ::shmat(id, 0, 0);
+    if (ptr == (void*)-1)
+    {
+        printf("shmat error:%s\n", strerror(errno));
+        return NULL;
+    }
+
+    return ptr;
+}
+
+// attach shm, SystemV method
+void* CShmAlloc::SystemVAttach(int32_t key)
+{
+    int32_t id = ::shmget(key, 0, 0);
+    if (id < 0)
+    {
+        printf("shmget error:%s\n", strerror(errno));
+        return NULL;
+    }
+    printf("attach shmid=%d\n", id);
+
+    void* ptr = ::shmat(id, 0, 0);
+    if (ptr == (void*)-1)
+    {
+        printf("shmat error:%s\n", strerror(errno));
+        return NULL;
+    }
 
     return ptr;
 }
