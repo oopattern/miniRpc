@@ -11,7 +11,7 @@
 #define SHM_OK          0
 
 // alloc type for shm
-enum Alloc 
+enum AllocType 
 {
     POSIX = 1, // posix way, use mmap
     SVIPC = 2  // systemV way, use shmget
@@ -36,6 +36,7 @@ template<typename T>
 class Singleton
 {
 public:
+    // init just run once in mutli pthread
     static T& Instance(void)
     {
         ::pthread_once(&m_ponce, &Singleton::Init);
