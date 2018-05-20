@@ -6,7 +6,7 @@
 class CAcceptor
 {
 public:
-    CAcceptor(TEndPoint addr);
+    CAcceptor(CEventLoop* loop, TEndPoint listen_addr);
 
     int32_t Listen(void);
 
@@ -14,7 +14,7 @@ public:
 
 private:
     int32_t     m_accept_socket;
-    bool        m_is_listenning;
+    bool        m_listenning;
     CChannel    m_accept_channel;
 };
 

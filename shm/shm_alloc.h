@@ -20,8 +20,8 @@ enum AllocType
 // lock type for shm, mutex lock or atomic
 enum LockType
 {
-    LOCK_MUTEX = 1, // mutex lock
-    LOCK_ATOMIC = 2   // gcc atomic, lock free
+    LOCK_MUTEX  = 1, // mutex lock
+    LOCK_ATOMIC = 2  // gcc atomic, lock free
 };
 
 // mutex lock info

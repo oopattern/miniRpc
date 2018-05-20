@@ -12,12 +12,12 @@ typedef struct _tEndPoint
 class CTcpServer
 {
 public:
-    CTcpServer(TEndPoint addr);
+    CTcpServer(CEventLoop* loop, TEndPoint listen_addr);
 
     void Start(void);
 
 private:
-    
+    CAcceptor* m_acceptor;
 };
 
 #endif // end of __TCP_SERVER_H

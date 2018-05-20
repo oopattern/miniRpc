@@ -1,9 +1,9 @@
 #include <stdio.h>
 
-CAcceptor::CAcceptor(TEndPoint endpoint) 
+CAcceptor::CAcceptor(CEventLoop* loop, TEndPoint listen_addr) 
     : m_accept_socket(::socket(family, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, IPPROTO_TCP)),
-      m_is_listenning(false),
-      m_accept_channel(m_accept_socket)
+      m_listenning(false),
+      m_accept_channel(loop, m_accept_socket)
 {
     if (m_accept_socket < 0)
     {
@@ -36,12 +36,12 @@ int CAcceptor::Listen(void)
         return ERROR;
     }
 
-    m_is_listenning = true;
+    m_listenning = true;
     m_accept_channel.EnableRead();
     return OK;
 }
 
 bool CAcceptor::IsListenning(void)
 {
-    return m_is_listenning;
+    return m_listenning;
 }
