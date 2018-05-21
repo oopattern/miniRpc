@@ -2,6 +2,14 @@
 #define __CHANNEL_H
 
 #include <stdio.h>
+#include <stdint.h>
+#include <vector>
+
+using namespace std;
+
+typedef std::function<void()> EventCallback;
+
+class CEventLoop;
 
 class CChannel
 {
@@ -16,7 +24,12 @@ public:
     int32_t Fd(void) const { return m_fd; }
     int32_t Events(void) const { return m_events; }
     void SetReadyEvent(int32_t val) { m_ready_events = val; }
+    
     void HandleEvent(void);
+    void SetReadCallback(const EventCallback& cb) { m_read_callback = cb; }
+    void SetWriteCallback(const EventCallback& cb) { m_write_callback = cb; }
+    void SetErrorCallback(const EventCallback& cb) { m_error_callback = cb; }
+    void SetCloseCallback(const EventCallback& cb) { m_close_callback = cb; }
 
 private:
     void Update(void);
@@ -26,11 +39,15 @@ private:
     static const int32_t kReadEvent;
     static const int32_t kWriteEvent;
 
-    int32_t m_fd;
-    int32_t m_events;
-    int32_t m_ready_events; // ready event from epoll_wait
+    int32_t         m_fd;
+    int32_t         m_events;
+    int32_t         m_ready_events; // ready event from epoll_wait
 
-    CEventLoop* m_loop;
+    CEventLoop*     m_loop;
+    EventCallback   m_read_callback;
+    EventCallback   m_write_callback;
+    EventCallback   m_error_callback;
+    EventCallback   m_close_callback;
 };
 
 typedef std::vector<CChannel*> ChannelList;

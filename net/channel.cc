@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <poll.h>   // epoll
+#include "channel.h"
 
 
 const int32_t CChannel::kNoneEvent = 0;
@@ -39,14 +41,42 @@ void CChannel::DisableWrite(void)
     Update();
 }
 
-void CChannel::HandleEvent(void)
-{
-    printf("epoll event happened\n");   
-}
-
 void CChannel::Update(void)
 {
     m_loop->UpdateChannel(this);
 }
+
+void CChannel::HandleEvent(void)
+{
+    printf("epoll event happened\n");   
+
+    // registered read event
+    if (m_ready_events & (POLLIN | POLLPRI))
+    {
+        if (m_read_callback) 
+        {
+            m_read_callback();
+        }
+    }
+
+    // registered write event
+    if (m_ready_events & POLLOUT)
+    {
+        if (m_write_callback)
+        {
+            m_write_callback();
+        }
+    }
+
+    // registered error event
+    if (m_ready_events & (POLLERR | POLLNVAL))
+    {
+        if (m_error_callback)
+        {
+            m_error_callback();
+        }
+    }
+}
+
 
 

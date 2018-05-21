@@ -1,4 +1,8 @@
 #include <stdio.h>
+#include <assert.h> // assert
+#include <unistd.h> // close
+#include <poll.h>   // epoll
+#include "channel.h"
 
 
 CEpoller::CEpoller()

@@ -2,7 +2,10 @@
 #define __EPOLL_H
 
 #include <stdio.h>
+#include <stdint.h>
 
+class CChannel;
+class ChannelList;
 struct epoll_event;
 typedef std::vector<struct epoll_event> EventList;
 

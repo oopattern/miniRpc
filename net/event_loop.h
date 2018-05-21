@@ -2,6 +2,11 @@
 #define __EVENT_LOOP_H
 
 #include <stdio.h>
+#include <stdint.h>
+
+class CChannel;
+class ChannelList;
+class CEpoller;
 
 class CEventLoop
 {
