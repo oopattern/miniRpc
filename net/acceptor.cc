@@ -24,7 +24,10 @@ CAcceptor::CAcceptor(CEventLoop* loop, TEndPoint& listen_addr)
     int32_t option = 1;
     ::setsockopt(m_accept_socket, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
 
+    // should set zero addr before, otherwise can not bind
     struct sockaddr_in inaddr;
+    ::bzero(&inaddr, sizeof(inaddr));
+
     inaddr.sin_family = AF_INET;
     inaddr.sin_port = ::htons(listen_addr.port);
     
@@ -84,7 +87,6 @@ void CAcceptor::HandleRead(void)
     }
     else
     {
-        printf("new connection arrive\n");
         if (m_new_connection_callback)
         {
             m_new_connection_callback(connfd);

@@ -11,6 +11,7 @@ using std::map;
 using std::string;
 using std::vector;
 using std::function;
+using namespace std::placeholders;
 
 #ifndef ERROR
 #define ERROR   -1

@@ -42,15 +42,25 @@ void TestShm(void)
     printf("shm test finish.\n");
 }
 
+void TestMessage(CTcpConnection* conn_ptr, char* buf, int32_t len)
+{
+    if (len > 0)
+    {
+        buf[len] = '\0';
+        printf("socket receive: %s\n", buf);
+    }
+}
+
 void TestTcpServer(void)
 {
     TEndPoint  listen_addr;
     snprintf(listen_addr.ip, sizeof(listen_addr.ip), "127.0.0.1");
-    listen_addr.port = 16161;
+    listen_addr.port = 8888;
     printf("tcp server start listen: %s:%d\n", listen_addr.ip, listen_addr.port);
     
     CEventLoop loop;
     CTcpServer server(&loop, listen_addr);
+    server.SetMessageCallback(std::bind(&TestMessage, _1, _2, _3));
     server.Start();
     loop.Loop();
 }

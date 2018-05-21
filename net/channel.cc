@@ -49,7 +49,7 @@ void CChannel::Update(void)
 
 void CChannel::HandleEvent(void)
 {
-    printf("epoll event happened\n");   
+    //printf("epoll ready event=%d happened\n", m_ready_events);   
 
     // registered read event
     if (m_ready_events & (POLLIN | POLLPRI))

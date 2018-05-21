@@ -13,11 +13,14 @@ CTcpConnection::CTcpConnection(CEventLoop* loop, int32_t connfd)
     m_channel->SetReadCallback(std::bind(&CTcpConnection::HandleRead, this));
     m_channel->SetWriteCallback(std::bind(&CTcpConnection::HandleWrite, this));
     m_channel->SetCloseCallback(std::bind(&CTcpConnection::HandleClose, this));
+
+    // enable socket read
+    m_channel->EnableRead();
 }
 
 void CTcpConnection::HandleRead(void)
 {
-    printf("need to read socket\n");
+    //printf("need to read socket\n");
     char buf[1024*100];
     int32_t nread = 0;
 

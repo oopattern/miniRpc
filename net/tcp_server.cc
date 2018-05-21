@@ -9,7 +9,7 @@ CTcpServer::CTcpServer(CEventLoop* loop, TEndPoint& listen_addr)
     : m_loop(loop),
       m_acceptor(new CAcceptor(loop, listen_addr))
 {
-    m_acceptor->SetNewConnectionCallback(std::bind(&CTcpServer::NewConnection, this, std::placeholders::_1));
+    m_acceptor->SetNewConnectionCallback(std::bind(&CTcpServer::NewConnection, this, _1));
 }
 
 CTcpServer::~CTcpServer()
@@ -26,6 +26,7 @@ void CTcpServer::Start(void)
 void CTcpServer::NewConnection(int32_t connfd)
 {
     // find pthread to handle this connection
+    printf("build new connection\n");
 
     // build connection
     std::string name = std::to_string(connfd);
