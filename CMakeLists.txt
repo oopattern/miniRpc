@@ -10,6 +10,12 @@ set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3 -Wall")
 
 add_executable( demo 
                 main.cc
+                net/acceptor.cc
+                net/channel.cc
+                net/epoll.cc
+                net/event_loop.cc
+                net/tcp_connection.cc
+                net/tcp_server.cc
                 shm/shm_alloc.cc
                 shm/shm_hash.cc
                 shm/shm_queue.cc

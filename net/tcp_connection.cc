@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <unistd.h> // read, close
 #include "channel.h"
 #include "event_loop.h"
 #include "tcp_connection.h"
@@ -25,7 +26,7 @@ void CTcpConnection::HandleRead(void)
     {
         if (m_message_callback)
         {
-            m_message_callback(m_connfd, buf, nread);
+            m_message_callback(this, buf, nread);
         }
     }
     else if (0 == nread)

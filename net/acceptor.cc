@@ -4,16 +4,16 @@
 #include <netinet/in.h> // sockaddr_in, htons
 #include <errno.h>      // errno
 #include <string.h>     // snprintf, memset
+#include <strings.h>    // bzero
 #include "event_loop.h"
 #include "channel.h"
 #include "acceptor.h"
-#include "tcp_server.h"
 
 
 CAcceptor::CAcceptor(CEventLoop* loop, TEndPoint& listen_addr) 
     : m_accept_socket(::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, IPPROTO_TCP)),
       m_listenning(false),
-      m_accept_channel(loop, m_accept_socket)
+      m_accept_channel(new CChannel(loop, m_accept_socket))
 {
     if (m_accept_socket < 0)
     {
@@ -35,7 +35,7 @@ CAcceptor::CAcceptor(CEventLoop* loop, TEndPoint& listen_addr)
     }
 
     // bind read event(new connection)
-    m_accept_channel.SetReadCallback(std::bind(&CAcceptor::HandleRead, this));
+    m_accept_channel->SetReadCallback(std::bind(&CAcceptor::HandleRead, this));
 }
 
 int CAcceptor::Listen(void)
@@ -53,7 +53,7 @@ int CAcceptor::Listen(void)
     }
 
     m_listenning = true;
-    m_accept_channel.EnableRead();
+    m_accept_channel->EnableRead();
     return OK;
 }
 

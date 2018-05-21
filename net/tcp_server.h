@@ -3,25 +3,21 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include "net_common.h"
+
+using namespace std;
 
 
 class CTcpConnection;
 class CAcceptor;
 class CEventLoop;
 
-typedef std::map<string, CTcpConnection*> ConnectionMap;
-typedef std::function<void(CTcpConnection* conn_ptr, char* buf, int32_t len)> MessageCallback;
-
-typedef struct _tEndPoint
-{
-    char    ip[32];
-    int32_t port;
-} TEndPoint;
 
 class CTcpServer
 {
 public:
     CTcpServer(CEventLoop* loop, TEndPoint& listen_addr);
+    ~CTcpServer();
 
     void Start(void);
 

@@ -3,15 +3,18 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include "net_common.h"
+
+using namespace std;
 
 class CChannel;
-class ChannelList;
 class CEpoller;
 
 class CEventLoop
 {
 public:
     CEventLoop();
+    ~CEventLoop();
 
     void Loop(void);
 
@@ -19,6 +22,7 @@ public:
 
 private:
     static const int32_t kEpollWaitTimeMs = 1000;
+    
     CEpoller*   m_epoller;       
     bool        m_quit;
     ChannelList m_active_channels;

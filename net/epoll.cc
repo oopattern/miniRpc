@@ -1,13 +1,17 @@
 #include <stdio.h>
-#include <assert.h> // assert
-#include <unistd.h> // close
-#include <poll.h>   // epoll
+#include <assert.h>     // assert
+#include <unistd.h>     // close
+#include <string.h>     // strerror    
+#include <strings.h>    // bzero
+#include <sys/epoll.h>  // epoll
+#include "net_common.h"
 #include "channel.h"
+#include "epoll.h"
 
 
 CEpoller::CEpoller()
 {
-    m_epollfd = ::epoll_creat(102400);
+    m_epollfd = ::epoll_create(102400);
     m_events.resize(kInitEventSize);
 
     if (m_epollfd < 0)
@@ -35,10 +39,10 @@ void CEpoller::WaitEvent(int32_t timeout_ms, ChannelList& active_channels)
         return;
     }
 
-    ::assert(num_events <= m_events.size());
+    assert(num_events <= m_events.size());
     for (int32_t i = 0; i < num_events; ++i)
     {
-        CChannel* channel = m_events[i].data.ptr;
+        CChannel* channel = (CChannel*)m_events[i].data.ptr;
         channel->SetReadyEvent(m_events[i].events);
         active_channels.push_back(channel);
     }
@@ -59,7 +63,8 @@ int32_t CEpoller::UpdateChannel(CChannel* channel)
     event.events = channel->Events();
     event.data.ptr = channel;
 
-    if (0 > ::epoll_ctl(m_epollfd, operation, fd, &event))
+    // temporary just add 
+    if (0 > ::epoll_ctl(m_epollfd, EPOLL_CTL_ADD, fd, &event))
     {
         printf("epoll ctl error: %s\n", ::strerror(errno));
         return ERROR;

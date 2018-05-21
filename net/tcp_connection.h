@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include "net_common.h"
 
 class CEventLoop;
 class CChannel;

@@ -3,12 +3,11 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include "net_common.h"
 
-typedef std::function<void(int32_t connfd)> NewConnectionCallback;
 
 class CEventLoop;
 class CChannel;
-struct TEndPoint;
 
 class CAcceptor
 {
@@ -19,7 +18,7 @@ public:
 
     bool IsListenning(void);
 
-    void SetNewConnectionCallback(NewConnectionCallback& cb)
+    void SetNewConnectionCallback(const NewConnectionCallback& cb)
     {
         m_new_connection_callback = cb;
     }
@@ -30,7 +29,7 @@ private:
 private:
     int32_t     m_accept_socket;
     bool        m_listenning;
-    CChannel    m_accept_channel;
+    CChannel*   m_accept_channel;
     NewConnectionCallback m_new_connection_callback;
 };
 

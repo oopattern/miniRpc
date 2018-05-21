@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <poll.h>   // epoll
 #include "channel.h"
+#include "event_loop.h"
 
 
 const int32_t CChannel::kNoneEvent = 0;

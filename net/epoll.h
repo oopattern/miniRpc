@@ -3,20 +3,26 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <vector>
+#include "net_common.h"
+
+using std::vector;
 
 class CChannel;
-class ChannelList;
 struct epoll_event;
+
 typedef std::vector<struct epoll_event> EventList;
+
 
 class CEpoller
 {
 public:
     CEpoller();
+    ~CEpoller();
 
     void WaitEvent(int32_t timeout_ms, ChannelList& active_channels);
 
-    void UpdateChannel(CChannel* channel);
+    int32_t UpdateChannel(CChannel* channel);
 
 private:
     static const int32_t kInitEventSize = 32;

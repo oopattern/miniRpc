@@ -3,11 +3,10 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#include <vector>
+#include "net_common.h"
 
 using namespace std;
 
-typedef std::function<void()> EventCallback;
 
 class CEventLoop;
 
@@ -49,8 +48,6 @@ private:
     EventCallback   m_error_callback;
     EventCallback   m_close_callback;
 };
-
-typedef std::vector<CChannel*> ChannelList;
 
 #endif // end of __CHANNEL_H
 

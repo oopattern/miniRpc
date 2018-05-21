@@ -4,11 +4,12 @@
 #include "tcp_connection.h"
 #include "tcp_server.h"
 
+
 CTcpServer::CTcpServer(CEventLoop* loop, TEndPoint& listen_addr)
     : m_loop(loop),
       m_acceptor(new CAcceptor(loop, listen_addr))
 {
-    m_acceptor->SetNewConnectionCallback(std::bind(&CTcpServer::NewConnection, this, _1));
+    m_acceptor->SetNewConnectionCallback(std::bind(&CTcpServer::NewConnection, this, std::placeholders::_1));
 }
 
 CTcpServer::~CTcpServer()
