@@ -16,6 +16,7 @@ add_executable( demo
                 net/event_loop.cc
                 net/tcp_connection.cc
                 net/tcp_server.cc
+                net/tcp_client.cc
                 shm/shm_alloc.cc
                 shm/shm_hash.cc
                 shm/shm_queue.cc

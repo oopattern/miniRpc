@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string>
 #include "sort_merge.h"
+#include "net/tcp_client.h"
 #include "net/tcp_server.h"
 #include "net/event_loop.h"
 #include "example/test_shm_hash.cc"
@@ -49,6 +50,19 @@ void TestMessage(CTcpConnection* conn_ptr, char* buf, int32_t len)
         buf[len] = '\0';
         printf("socket receive: %s\n", buf);
     }
+}
+
+void TestTcpClient(void)
+{
+    TEndPoint server_addr;
+    snprintf(server_addr.ip, sizeof(server_addr.ip), "127.0.0.1");
+    server_addr.port = 8888;
+    printf("tcp client start connect: %s:%d\n", server_addr.ip, server_addr.port);
+
+    CEventLoop loop;
+    CTcpClient client(&loop);
+    client.Connect(server_addr);
+    loop.Loop();
 }
 
 void TestTcpServer(void)
