@@ -19,6 +19,7 @@ public:
     void Loop(void);
 
     void UpdateChannel(CChannel* channel);
+    void RemoveChannel(CChannel* channel);
 
 private:
     static const int32_t kEpollWaitTimeMs = 1000;

@@ -13,6 +13,7 @@ CChannel::CChannel(CEventLoop* loop, int32_t fd)
     : m_fd(fd),
       m_events(0),
       m_ready_events(kNoneEvent),
+      m_stat(kNew),
       m_loop(loop)
 {
 
@@ -42,9 +43,20 @@ void CChannel::DisableWrite(void)
     Update();
 }
 
+void CChannel::DisableAll(void)
+{
+    m_events = kNoneEvent;
+    Update();
+}
+
 void CChannel::Update(void)
 {
     m_loop->UpdateChannel(this);
+}
+
+void CChannel::Remove(void)
+{
+    m_loop->RemoveChannel(this);
 }
 
 void CChannel::HandleEvent(void)

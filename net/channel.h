@@ -19,10 +19,14 @@ public:
     void EnableWrite(void);
     void DisableRead(void);
     void DisableWrite(void);
+    void DisableAll(void);
 
     int32_t Fd(void) const { return m_fd; }
     int32_t Events(void) const { return m_events; }
     void SetReadyEvent(int32_t val) { m_ready_events = val; }
+    void Remove(void);
+    EChannelStat GetStat(void) const { return m_stat; }
+    void SetStat(EChannelStat stat) { m_stat = stat; }
     
     void HandleEvent(void);
     void SetReadCallback(const EventCallback& cb) { m_read_callback = cb; }
@@ -41,6 +45,7 @@ private:
     int32_t         m_fd;
     int32_t         m_events;
     int32_t         m_ready_events; // ready event from epoll_wait
+    EChannelStat    m_stat; // add, modify, del
 
     CEventLoop*     m_loop;
     EventCallback   m_read_callback;

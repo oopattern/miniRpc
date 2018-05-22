@@ -43,12 +43,21 @@ void TestShm(void)
     printf("shm test finish.\n");
 }
 
-void TestMessage(CTcpConnection* conn_ptr, char* buf, int32_t len)
+void ServerMessage(CTcpConnection* conn_ptr, char* buf, int32_t len)
 {
     if (len > 0)
     {
         buf[len] = '\0';
-        printf("socket receive: %s\n", buf);
+        printf("server receive: %s\n", buf);
+    }
+}
+
+void ClientMessage(CTcpConnection* conn_ptr, char* buf, int32_t len)
+{
+    if (len > 0)
+    {
+        buf[len] = '\0';
+        printf("client receive: %s\n", buf);
     }
 }
 
@@ -61,6 +70,7 @@ void TestTcpClient(void)
 
     CEventLoop loop;
     CTcpClient client(&loop);
+    client.SetMessageCallback(std::bind(&ClientMessage, _1, _2, _3));
     client.Connect(server_addr);
     loop.Loop();
 }
@@ -74,7 +84,7 @@ void TestTcpServer(void)
     
     CEventLoop loop;
     CTcpServer server(&loop, listen_addr);
-    server.SetMessageCallback(std::bind(&TestMessage, _1, _2, _3));
+    server.SetMessageCallback(std::bind(&ServerMessage, _1, _2, _3));
     server.Start();
     loop.Loop();
 }
@@ -82,7 +92,8 @@ void TestTcpServer(void)
 int main(void)
 {
     printf("hello world\n");    
-    TestTcpServer();
+    //TestTcpServer();
+    TestTcpClient();
     return 0;
 }
 

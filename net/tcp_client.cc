@@ -2,6 +2,7 @@
 #include <unistd.h>     // close
 #include <sys/socket.h> // socket, bind, connect, listen, accept
 #include <netinet/in.h> // sockaddr_in, htons
+#include <arpa/inet.h>  // inet_addr
 #include <string.h>     // strerror
 #include <strings.h>    // bzero
 #include "channel.h"
@@ -39,14 +40,19 @@ int32_t CTcpClient::Connect(TEndPoint& server_addr)
 
     inaddr.sin_family = AF_INET;
     inaddr.sin_port = server_addr.port;
+    inaddr.sin_addr.s_addr = ::inet_addr(server_addr.ip);
 
     int32_t ret = ::connect(m_connfd, (struct sockaddr*)&inaddr, sizeof(struct sockaddr));
-    if (ret < 0)
+
+    // if socket in nonblocking, connection may not complete at once, 
+    // just select socket for write event, and concern about SO_ERROR
+    if ((ret < 0) && (errno != EINPROGRESS))
     {
         printf("tcp client connect error: %s\n", ::strerror(errno));
         return ERROR;
     }
 
+    // not finish connect, NewConnection do the rest things
     m_channel = new CChannel(m_loop, m_connfd);       
     m_channel->SetWriteCallback(std::bind(&CTcpClient::NewConnection, this));
     m_channel->EnableWrite();
@@ -56,11 +62,25 @@ int32_t CTcpClient::Connect(TEndPoint& server_addr)
 
 void CTcpClient::NewConnection(void)
 {
+    // check if connection ok...
+    int32_t optval = -1;
+    socklen_t optlen = sizeof(optval);
+    
+    if (0 > ::getsockopt(m_connfd, SOL_SOCKET, SO_ERROR, &optval, &optlen))
+    {
+        printf("tcp client connection failed error: %s\n", ::strerror(errno));
+        return;
+    }
+
+    // cancel write event, otherwise will trigger connection all the time
+    m_channel->DisableAll();
+    m_channel->Remove();
+
     printf("tcp client connect ok, build new connection\n");   
-    m_connection = new CTcpConnection(m_loop, m_connfd);
+    //m_connection = new CTcpConnection(m_loop, m_connfd);
 
     // when client read event arrive, will call message callback
-    m_connection->SetMessageCallback(m_message_callback);
+    //m_connection->SetMessageCallback(m_message_callback);
 }
 
 

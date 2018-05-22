@@ -23,12 +23,14 @@ public:
     void WaitEvent(int32_t timeout_ms, ChannelList& active_channels);
 
     int32_t UpdateChannel(CChannel* channel);
+    int32_t RemoveChannel(CChannel* channel);
 
 private:
     static const int32_t kInitEventSize = 32;
     
     int32_t     m_epollfd;
     EventList   m_events;
+    ChannelMap  m_channel_map;
 };
 
 #endif // end of __EPOLL_H

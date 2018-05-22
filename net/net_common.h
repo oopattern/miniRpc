@@ -21,6 +21,13 @@ using namespace std::placeholders;
 #define OK      0
 #endif
 
+typedef enum 
+{
+    kNew    = 0,
+    kAdded  = 1,
+    kDeleted= 2,
+} EChannelStat;
+
 typedef struct _tEndPoint
 {
     char    ip[32];
@@ -30,8 +37,9 @@ typedef struct _tEndPoint
 class CChannel;
 class CTcpConnection;
 
-typedef std::vector<CChannel*> ChannelList;
-typedef std::map<std::string, CTcpConnection*> ConnectionMap;
+typedef std::map<int, CChannel*> ChannelMap;
+typedef std::vector<CChannel*>   ChannelList;
+typedef std::map<std::string, CTcpConnection*>  ConnectionMap;
 
 typedef std::function<void()> EventCallback;
 typedef std::function<void(int32_t connfd)> NewConnectionCallback;

@@ -63,12 +63,42 @@ int32_t CEpoller::UpdateChannel(CChannel* channel)
     event.events = channel->Events();
     event.data.ptr = channel;
 
+    int32_t operation = ((kNew == channel->GetStat()) ? EPOLL_CTL_ADD : EPOLL_CTL_MOD);
+
     // temporary just add 
-    if (0 > ::epoll_ctl(m_epollfd, EPOLL_CTL_ADD, fd, &event))
+    if (0 > ::epoll_ctl(m_epollfd, operation, fd, &event))
     {
         printf("epoll ctl error: %s\n", ::strerror(errno));
         return ERROR;
     }
 
+    channel->SetStat(kAdded);
+    m_channel_map[fd] = channel;
     return OK;
 }
+
+int32_t CEpoller::RemoveChannel(CChannel* channel)
+{
+    struct epoll_event event;
+    ::bzero(&event, sizeof(event));
+
+    int32_t fd = channel->Fd();
+    event.events = channel->Events();
+
+    // find registered channel fd
+    if (m_channel_map.find(fd) == m_channel_map.end())
+    {
+        printf("epoll remove can not find channel fd=%d\n", fd);
+        return ERROR;
+    }
+
+    if (0 > ::epoll_ctl(m_epollfd, EPOLL_CTL_DEL, fd, &event))
+    {
+        printf("epoll remove ctl fd=%d error\n", fd);
+        return ERROR;
+    }
+    
+    m_channel_map.erase(fd);
+    return OK;
+}
+

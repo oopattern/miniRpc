@@ -38,3 +38,7 @@ void CEventLoop::UpdateChannel(CChannel* channel)
     m_epoller->UpdateChannel(channel);   
 }
 
+void CEventLoop::RemoveChannel(CChannel* channel)
+{
+    m_epoller->RemoveChannel(channel);
+}
