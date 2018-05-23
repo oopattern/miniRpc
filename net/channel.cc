@@ -1,5 +1,7 @@
 #include <stdio.h>
-#include <poll.h>   // epoll
+#include <poll.h>   // POLLIN
+#include <string.h> // strerror
+#include <errno.h>  // errno
 #include "channel.h"
 #include "event_loop.h"
 
@@ -66,6 +68,7 @@ void CChannel::HandleEvent(void)
     // registered read event
     if (m_ready_events & (POLLIN | POLLPRI))
     {
+        printf("fd=%d epoll read event\n", m_fd);
         if (m_read_callback) 
         {
             m_read_callback();
@@ -75,6 +78,7 @@ void CChannel::HandleEvent(void)
     // registered write event
     if (m_ready_events & POLLOUT)
     {
+        printf("fd=%d epoll write event\n", m_fd);
         if (m_write_callback)
         {
             m_write_callback();
@@ -84,6 +88,7 @@ void CChannel::HandleEvent(void)
     // registered error event
     if (m_ready_events & (POLLERR | POLLNVAL))
     {
+        printf("fd=%d epoll error event: %s\n", m_fd, ::strerror(errno));
         if (m_error_callback)
         {
             m_error_callback();

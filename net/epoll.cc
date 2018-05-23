@@ -65,7 +65,6 @@ int32_t CEpoller::UpdateChannel(CChannel* channel)
 
     int32_t operation = ((kNew == channel->GetStat()) ? EPOLL_CTL_ADD : EPOLL_CTL_MOD);
 
-    // temporary just add 
     if (0 > ::epoll_ctl(m_epollfd, operation, fd, &event))
     {
         printf("epoll ctl error: %s\n", ::strerror(errno));

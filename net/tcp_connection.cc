@@ -46,4 +46,5 @@ void CTcpConnection::HandleWrite(void)
 void CTcpConnection::HandleClose(void)
 {
     printf("prepare to close socket\n");
+    ::exit(-1);
 }

@@ -9,6 +9,9 @@
 
 using namespace std;
 
+// try tcpdump command, check out what is happen:
+// # tcpdump -i lo tcp port 8888 -X -s 0 -v
+
 
 void TestSortLargeFile(void)
 {
