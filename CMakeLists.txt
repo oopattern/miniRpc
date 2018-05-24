@@ -20,10 +20,10 @@ add_executable( demo
                 shm/shm_alloc.cc
                 shm/shm_hash.cc
                 shm/shm_queue.cc
-                block_queue.cc
-                sort_merge.cc
-                thread.cc
-                public.cc )
+                base/block_queue.cc
+                base/sort_merge.cc
+                base/thread.cc
+                base/public.cc )
 
 # LINKFLAG: -lrt: shm_open
 # need after the target

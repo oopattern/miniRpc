@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <vector>
-#include "../public.h"
-#include "../thread.h"
+#include "../base/public.h"
+#include "../base/thread.h"
 #include "../shm/shm_hash.h"
 
 using namespace std;

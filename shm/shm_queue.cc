@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <assert.h> // assert
 #include <string.h> // memcpy
+#include "../base/thread.h"
 #include "shm_queue.h"
-#include "../thread.h"
 
 
 static const char* MMAP_QUEUE = "POSIX_MMAP_QUEUE";

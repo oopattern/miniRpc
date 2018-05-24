@@ -48,3 +48,10 @@ void CTcpConnection::HandleClose(void)
     printf("prepare to close socket\n");
     ::exit(-1);
 }
+
+void CTcpConnection::Send(const char* buf, int32_t len)
+{
+    
+}
+
+

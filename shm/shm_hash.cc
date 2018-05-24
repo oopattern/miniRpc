@@ -6,8 +6,9 @@
 #include <limits.h> // LONG_MAX
 #include <fcntl.h>  // open, O_RDWR
 #include <math.h>   // sqrt
+#include "../base/thread.h"
 #include "shm_hash.h"
-#include "../thread.h"
+
 
 // Posix-mmap method, default shm way, compare with SystemV-shmget method
 static const uint8_t g_allocType = POSIX;
