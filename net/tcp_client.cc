@@ -85,6 +85,9 @@ void CTcpClient::NewConnection(void)
 
     // when client read event arrive, will call message callback
     m_connection->SetMessageCallback(m_message_callback);
+
+    const char* hint = "new connection, hello oopattern\n";
+    m_connection->Send(hint, ::strlen(hint));
 }
 
 

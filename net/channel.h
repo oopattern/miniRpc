@@ -20,6 +20,8 @@ public:
     void DisableRead(void);
     void DisableWrite(void);
     void DisableAll(void);
+    bool IsWriteable(void);
+    bool IsReadable(void);
 
     int32_t Fd(void) const { return m_fd; }
     int32_t Events(void) const { return m_events; }

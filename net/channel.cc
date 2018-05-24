@@ -21,6 +21,11 @@ CChannel::CChannel(CEventLoop* loop, int32_t fd)
 
 }
 
+bool CChannel::IsReadable(void)
+{
+    return m_events & kReadEvent;
+}
+
 void CChannel::EnableRead(void)
 {
     m_events |= kReadEvent;
@@ -31,6 +36,11 @@ void CChannel::DisableRead(void)
 {
     m_events &= ~kReadEvent;
     Update();
+}
+
+bool CChannel::IsWriteable(void)
+{
+    return m_events & kWriteEvent;
 }
 
 void CChannel::EnableWrite(void)
@@ -63,12 +73,10 @@ void CChannel::Remove(void)
 
 void CChannel::HandleEvent(void)
 {
-    //printf("epoll ready event=%d happened\n", m_ready_events);   
-
     // registered read event
     if (m_ready_events & (POLLIN | POLLPRI))
     {
-        printf("fd=%d epoll read event\n", m_fd);
+        //printf("fd=%d epoll read event\n", m_fd);
         if (m_read_callback) 
         {
             m_read_callback();
@@ -78,7 +86,7 @@ void CChannel::HandleEvent(void)
     // registered write event
     if (m_ready_events & POLLOUT)
     {
-        printf("fd=%d epoll write event\n", m_fd);
+        //printf("fd=%d epoll write event\n", m_fd);
         if (m_write_callback)
         {
             m_write_callback();
@@ -95,6 +103,4 @@ void CChannel::HandleEvent(void)
         }
     }
 }
-
-
 

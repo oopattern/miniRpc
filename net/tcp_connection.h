@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include "net_common.h"
 
+
+class CBuffer;
 class CEventLoop;
 class CChannel;
 
@@ -24,9 +26,11 @@ private:
 
 private:
     CEventLoop*     m_loop;
-    int32_t         m_connfd;
     CChannel*       m_channel;
     MessageCallback m_message_callback;
+
+    CBuffer*        m_rbuf; // for tcp connection read event
+    CBuffer*        m_wbuf; // for tcp connection write event
 };
 
 #endif // end of __TCP_CONNECTION_H
