@@ -28,13 +28,15 @@ void CTcpConnection::HandleRead(void)
     char buf[1024*100];
     int32_t nread = 0;
 
-    nread = ::read(m_channel->Fd(), buf, sizeof(buf));
+    nread = ::read(m_channel->Fd(), buf, sizeof(buf));    
     if (nread > 0)
     {
+        m_rbuf->Append(buf, nread);
         if (m_message_callback)
         {
-            m_message_callback(this, buf, nread);
+            m_message_callback(this, (char*)m_rbuf->Data(), m_rbuf->Remain());
         }
+        m_rbuf->Skip(nread);
     }
     else if (0 == nread)
     {

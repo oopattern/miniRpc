@@ -34,6 +34,7 @@ int32_t CBuffer::Remain(void) const
 
 const char* CBuffer::Data(void) const
 {
+    // be care index less than buf size
     assert(m_index < Size());
     return &m_content[m_index];   
 }
