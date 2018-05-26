@@ -1,0 +1,22 @@
+syntax="proto2";
+
+
+message RpcMeta
+{
+    optional RpcRequestMeta request = 1;
+    optional RpcResponseMeta response = 2;
+    optional string payload = 3;
+};
+
+message RpcRequestMeta
+{
+    required string service_name = 1;
+    required string method_name = 2;
+};
+
+message RpcResponseMeta
+{
+    optional int32 error_code = 1;
+};
+
+

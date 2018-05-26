@@ -37,3 +37,44 @@ void CTcpServer::NewConnection(int32_t connfd)
     
     m_connection_map[name] = conn_ptr;
 }
+
+int32_t CTcpServer::AddService(google::protobuf::Service* service)
+{
+    if (NULL == service)
+    {
+        printf("register service is NULL error\n");
+        return ERROR;
+    }
+
+    const google::protobuf::ServiceDescriptor* sd = service->GetDescriptor();
+
+    if (0 == sd->method_count())
+    {
+        printf("service: %s no methods error\n", sd->full_name());
+        return ERROR;
+    }
+
+    for (int32_t i = 0; i < sd->method_count(); ++i)
+    {
+        // key: service_name : method_name
+        const google::protobuf::MethodDescriptor* md = sd->method(i);
+        std::string key = sd->full_name() + ":" + md->full_name();
+        
+        if (m_method_map.find(key) != m_method_map.end())
+        {
+            printf("service: %s method: %s already exists error\n", sd->full_name(), md->full_name());
+            return ERROR;
+        }
+
+        // register service and method
+        TMethodProperty mp;
+        mp.service = service;
+        mp.method = md;
+        m_method_map[key] = mp;
+        printf("Tcp Server register service: %s success\n", key.c_str());
+    }
+
+    return OK;
+}
+
+

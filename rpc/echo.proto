@@ -1,0 +1,17 @@
+syntax="proto2";
+package example;
+
+message EchoRequest
+{
+    required string message = 1;
+};
+
+message EchoResponse
+{
+    required string message = 1;
+};
+
+service CEchoService 
+{
+    rpc Echo(EchoRequest) returns (EchoResponse);
+};

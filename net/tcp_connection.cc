@@ -22,8 +22,17 @@ CTcpConnection::CTcpConnection(CEventLoop* loop, int32_t connfd)
     m_channel->EnableRead();
 }
 
+void CTcpConnection::HandleRpc(void)
+{
+    
+}
+
 void CTcpConnection::HandleRead(void)
 {
+#if USE_RPC
+    return HandleRpc();
+#endif    
+
     //printf("need to read socket\n");
     char buf[1024*100];
     int32_t nread = 0;

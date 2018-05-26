@@ -20,6 +20,7 @@ public:
     void SetMessageCallback(const MessageCallback& cb) { m_message_callback = cb; }
 
 private:
+    void HandleRpc(void);
     void HandleRead(void);
     void HandleWrite(void);
     void HandleClose(void);
