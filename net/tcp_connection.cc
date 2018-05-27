@@ -8,9 +8,10 @@
 #include "tcp_connection.h"
 
 
-CTcpConnection::CTcpConnection(CEventLoop* loop, int32_t connfd)
+CTcpConnection::CTcpConnection(CEventLoop* loop, int32_t connfd, CTcpServer* server)
     : m_loop(loop),
       m_channel(new CChannel(loop, connfd)),
+      m_server(server),
       m_rbuf(new CBuffer),
       m_wbuf(new CBuffer)
 {
@@ -22,17 +23,56 @@ CTcpConnection::CTcpConnection(CEventLoop* loop, int32_t connfd)
     m_channel->EnableRead();
 }
 
-void CTcpConnection::HandleRpc(void)
+void CTcpConnection::RpcMsgCallback(void)
 {
-    
+    RpcMeta rpc_meta;
+    rpc_meta.ParseFromArray(m_rbuf->Data(), m_rbuf->Remain());
+
+    // rpc_quest_meta to find rpc method service
+    const RpcRequestMeta& request_meta = rpc_meta.request();
+    std::string service_name = request_meta.service_name();
+    std::string method_name = request_meta.method_name();
+    std::string full_name = service_name + ":" + method_name;
+    printf("rpc service: %s method: %s\n", service_name.c_str(), method_name.c_str());
+
+    TMethodProperty method_property;
+    if (OK != m_server->FindService(full_name, method_property))
+    {
+        printf("find service error\n");
+        return;
+    }
+
+    // rpc_payload include request from client
+    google::protobuf::Message req_base;
+    google::protobuf::Message res_base;
+    google::protobuf::RpcController cntl;
+    std::string payload = rpc_meta.payload();
+    req_base.ParseFromArray(payload.c_str(), payload.size());
+
+    // RPC call
+    google::protobuf::Service* service = method_property.service;
+    google::protobuf::MethodDescriptor* method = method_property.method; 
+    service->CallMethod(method, &cntl, &req_base, &res_base, NULL);
+
+    // send response to client
+    std::string back_payload;
+    res_base.SerializeToString(&back_payload);
+
+    RpcMeta rpc_back_meta;
+    RpcResponseMeta response_meta;
+    response_meta.set_error_code(0);
+    rpc_back_meta.set_response(response_meta);
+    rpc_back_meta.set_payload(back_payload);
+
+    std::string client_msg;
+    rpc_back_meta.SerializeToString(&client_msg);
+    Send(client_msg.c_str(), client_msg.size());
+
+    printf("finish rpc call\n");
 }
 
 void CTcpConnection::HandleRead(void)
 {
-#if USE_RPC
-    return HandleRpc();
-#endif    
-
     //printf("need to read socket\n");
     char buf[1024*100];
     int32_t nread = 0;
@@ -41,10 +81,16 @@ void CTcpConnection::HandleRead(void)
     if (nread > 0)
     {
         m_rbuf->Append(buf, nread);
+
+#if USE_RPC 
+        RpcMsgCallback();
+#else 
         if (m_message_callback)
         {
             m_message_callback(this, (char*)m_rbuf->Data(), m_rbuf->Remain());
         }
+#endif
+        
         m_rbuf->Skip(nread);
     }
     else if (0 == nread)

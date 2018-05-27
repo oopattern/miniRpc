@@ -30,12 +30,26 @@ void CTcpServer::NewConnection(int32_t connfd)
 
     // build connection
     std::string name = std::to_string(connfd);
-    CTcpConnection* conn_ptr = new CTcpConnection(m_loop, connfd);
+    CTcpConnection* conn_ptr = new CTcpConnection(m_loop, connfd, this);
 
     // attach message callback
     conn_ptr->SetMessageCallback(m_message_callback);
     
     m_connection_map[name] = conn_ptr;
+}
+
+int32_t CTcpServer::FindService(const std::string& full_name, TMethodProperty& method_property)
+{
+    MethodMap::iterator iter = m_method_map.find(full_name);
+    if (iter == m_method_map.end())
+    {
+        printf("find service: %s error", full_name.c_str());
+        return ERROR;
+    }
+
+    method_property.service = iter->second.service;
+    method_property.method = iter->second.method;
+    return OK;
 }
 
 int32_t CTcpServer::AddService(google::protobuf::Service* service)

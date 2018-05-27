@@ -35,8 +35,11 @@ public:
 
     void SetMessageCallback(const MessageCallback& cb) { m_message_callback = cb; }
 
+    // register rpc service
     int32_t AddService(google::protobuf::Service* service);
 
+    // full_name: server_name:method_name
+    int32_t FindService(const std::string& full_name, TMethodProperty& method_property);
 private:
     CEventLoop*     m_loop;
     CAcceptor*      m_acceptor;
