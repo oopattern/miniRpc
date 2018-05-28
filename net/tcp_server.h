@@ -12,16 +12,6 @@ class CTcpConnection;
 class CAcceptor;
 class CEventLoop;
 
-typedef struct _tMethodProperty
-{
-    google::protobuf::Service* service;
-    google::protobuf::MethodDescriptor* method;
-} TMethodProperty;
-
-// key: service_name + method_name, val: method_property
-// one service may include many method
-typedef std::map<std::string, TMethodProperty> MethodMap;
-
 
 class CTcpServer
 {

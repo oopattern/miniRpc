@@ -1,5 +1,6 @@
 syntax="proto2";
-package example;
+
+option cc_generic_services = true;
 
 message EchoRequest
 {
@@ -13,5 +14,5 @@ message EchoResponse
 
 service CEchoService 
 {
-    rpc Echo(EchoRequest) returns (EchoResponse);
+    rpc Echoxxx(EchoRequest) returns (EchoResponse);
 };

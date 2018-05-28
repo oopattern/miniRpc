@@ -6,12 +6,14 @@
 #include <vector>
 #include <string>
 #include <functional>
+#include <google/protobuf/service.h>
 
 using std::map;
 using std::string;
 using std::vector;
 using std::function;
 using namespace std::placeholders;
+
 
 #ifndef ERROR
 #define ERROR   -1
@@ -20,6 +22,10 @@ using namespace std::placeholders;
 #ifndef OK
 #define OK      0
 #endif
+
+class CChannel;
+class CTcpConnection;
+
 
 typedef enum 
 {
@@ -34,12 +40,19 @@ typedef struct _tEndPoint
     int32_t port;
 } TEndPoint;
 
-class CChannel;
-class CTcpConnection;
+typedef struct _tMethodProperty
+{
+    google::protobuf::Service* service;
+    const google::protobuf::MethodDescriptor* method;
+} TMethodProperty;
 
 typedef std::map<int, CChannel*> ChannelMap;
 typedef std::vector<CChannel*>   ChannelList;
 typedef std::map<std::string, CTcpConnection*>  ConnectionMap;
+
+// key: service_name + method_name, val: method_property
+// one service may include many method
+typedef std::map<std::string, TMethodProperty> MethodMap;
 
 typedef std::function<void()> EventCallback;
 typedef std::function<void(int32_t connfd)> NewConnectionCallback;

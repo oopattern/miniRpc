@@ -81,7 +81,7 @@ void CTcpClient::NewConnection(void)
     m_channel->Remove();
 
     printf("tcp client connect ok, build new connection\n");   
-    m_connection = new CTcpConnection(m_loop, m_connfd);
+    m_connection = new CTcpConnection(m_loop, m_connfd, NULL);
 
     // when client read event arrive, will call message callback
     m_connection->SetMessageCallback(m_message_callback);

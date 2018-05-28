@@ -5,6 +5,8 @@
 #include "channel.h"
 #include "event_loop.h"
 #include "buffer.h"
+#include "../rpc/std_rpc_meta.pb.h"
+#include "tcp_server.h"
 #include "tcp_connection.h"
 
 
@@ -43,25 +45,26 @@ void CTcpConnection::RpcMsgCallback(void)
     }
 
     // rpc_payload include request from client
-    google::protobuf::Message req_base;
-    google::protobuf::Message res_base;
-    google::protobuf::RpcController cntl;
+    //google::protobuf::RpcController* cntl;
+    google::protobuf::Service* service = method_property.service;
+    const google::protobuf::MethodDescriptor* method = method_property.method; 
+
+    // create request and response from method
+    google::protobuf::Message* req_base = service->GetRequestPrototype(method).New();
+    google::protobuf::Message* res_base = service->GetResponsePrototype(method).New();    
     std::string payload = rpc_meta.payload();
-    req_base.ParseFromArray(payload.c_str(), payload.size());
+    req_base->ParseFromArray(payload.c_str(), payload.size());
 
     // RPC call
-    google::protobuf::Service* service = method_property.service;
-    google::protobuf::MethodDescriptor* method = method_property.method; 
-    service->CallMethod(method, &cntl, &req_base, &res_base, NULL);
+    service->CallMethod(method, NULL, req_base, res_base, NULL);
 
     // send response to client
     std::string back_payload;
-    res_base.SerializeToString(&back_payload);
+    res_base->SerializeToString(&back_payload);
 
     RpcMeta rpc_back_meta;
-    RpcResponseMeta response_meta;
-    response_meta.set_error_code(0);
-    rpc_back_meta.set_response(response_meta);
+    RpcResponseMeta* response_meta = rpc_back_meta.mutable_response();
+    response_meta->set_error_code(0);
     rpc_back_meta.set_payload(back_payload);
 
     std::string client_msg;

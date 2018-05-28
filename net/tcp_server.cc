@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <google/protobuf/descriptor.h> // ServiceDescriptor
 #include "acceptor.h"
 #include "event_loop.h"
 #include "tcp_connection.h"
@@ -64,7 +65,7 @@ int32_t CTcpServer::AddService(google::protobuf::Service* service)
 
     if (0 == sd->method_count())
     {
-        printf("service: %s no methods error\n", sd->full_name());
+        printf("service: %s no methods error\n", sd->full_name().c_str());
         return ERROR;
     }
 
@@ -76,7 +77,7 @@ int32_t CTcpServer::AddService(google::protobuf::Service* service)
         
         if (m_method_map.find(key) != m_method_map.end())
         {
-            printf("service: %s method: %s already exists error\n", sd->full_name(), md->full_name());
+            printf("service: %s method: %s already exists error\n", sd->full_name().c_str(), md->full_name().c_str());
             return ERROR;
         }
 
