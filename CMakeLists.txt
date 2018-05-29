@@ -10,6 +10,15 @@ set(CMAKE_BUILD_TYPE "Debug")
 set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -std=c++11 -O0 -g -ggdb -pthread")
 set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3 -Wall")
 
+# auto generate *.pb.cc and *.pb.h from proto
+# command: # proto --cpp_out=out_dir --proto_path=in_dir path/to/.proto
+# --cpp_out: for output dir, *.pb.cc and *.pb.h
+# --proto_path: for input dir, where input proto dir
+execute_process(COMMAND protoc --cpp_out=${CMAKE_CURRENT_BINARY_DIR}/rpc/ 
+                               --proto_path=${CMAKE_CURRENT_BINARY_DIR}/rpc 
+                               ${CMAKE_CURRENT_BINARY_DIR}/rpc/echo.proto 
+                               ${CMAKE_CURRENT_BINARY_DIR}/rpc/std_rpc_meta.proto)
+
 add_executable( demo 
                 main.cc
                 net/buffer.cc

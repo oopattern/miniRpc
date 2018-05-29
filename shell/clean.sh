@@ -7,4 +7,6 @@ rm Makefile
 rm tags
 rm cscope.files
 rm cscope.out
+rm rpc/*.pb.cc
+rm rpc/*.pb.h
 
