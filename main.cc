@@ -7,13 +7,15 @@
 #include "rpc/rpc_service.h"
 #include "example/test_shm_hash.cc"
 #include "example/test_shm_queue.cc"
+#include "rpc/rpc_channel.h"
+
 
 using namespace std;
 
 // 1) try tcpdump command, check out what is happen:
 // # tcpdump -i lo tcp port 8888 -X -s 0 -v
 // 2) try protoc command, to generate *.pb.cc and *.pb.h files
-// # protoc --cpp_out=./ std_rpc_meta.proto
+// # protoc --cpp_out=./ std_rpc_meta.proto, you can refer to CMakeLists.txt
 
 
 void TestSortLargeFile(void)
@@ -95,12 +97,37 @@ void TestTcpServer(void)
     loop.Loop();
 }
 
+void TestRpcClient(void)
+{
+    TEndPoint server_addr;
+    snprintf(server_addr.ip, sizeof(server_addr.ip), "127.0.0.1");
+    server_addr.port = 8888;
+    printf("RPC tcp client start connect: %s:%d\n", server_addr.ip, server_addr.port);
+
+    CEventLoop loop;
+    CTcpClient client(&loop);
+    client.Connect(server_addr);
+
+    // register rpc channel to stub
+    // when client do rpc call, will process rcp channel callmethod actually
+    //google::protobuf::RpcController rpc_cntl;
+    //CRpcCntl rpc_cntl;
+    CRpcChannel rpc_channel(&client);
+    EchoRequest request;
+    EchoResponse response;
+    CEchoService_Stub stub(&rpc_channel);
+    stub.Echoxxx(NULL, &request, &response, NULL);
+
+    // loop forever
+    loop.Loop();
+}
+
 void TestRpcServer(void)
 {
     TEndPoint listen_addr;
     snprintf(listen_addr.ip, sizeof(listen_addr.ip), "127.0.0.1");
     listen_addr.port = 8888;
-    printf("tcp server start listen: %s:%d\n", listen_addr.ip, listen_addr.port);
+    printf("RPC tcp server start listen: %s:%d\n", listen_addr.ip, listen_addr.port);
 
     CEventLoop loop;
     google::protobuf::Service* echo_service = new CEchoServiceImpl;    
@@ -115,7 +142,8 @@ int main(void)
     printf("hello world\n");    
     //TestTcpServer();
     //TestTcpClient();
-    TestRpcServer();
+    //TestRpcServer();
+    TestRpcClient();
     return 0;
 }
 

@@ -32,6 +32,7 @@ add_executable( demo
                 rpc/echo.pb.cc
                 rpc/std_rpc_meta.pb.cc
                 rpc/rpc_service.cc
+                rpc/rpc_channel.cc
                 shm/shm_alloc.cc
                 shm/shm_hash.cc
                 shm/shm_queue.cc

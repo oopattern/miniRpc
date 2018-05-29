@@ -19,7 +19,7 @@ public:
     void Send(const char* buf, int32_t len);
 
     void SetMessageCallback(const MessageCallback& cb) { m_message_callback = cb; }
-    
+
 private:
     void RpcMsgCallback(void);
     void HandleRead(void);

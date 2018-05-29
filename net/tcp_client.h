@@ -19,6 +19,8 @@ public:
 
     void SetMessageCallback(const MessageCallback& cb) { m_message_callback = cb; }
 
+    int32_t RpcSendRecv(const char* send_buf, int32_t send_len, char* recv_buf, int32_t recv_max_size, int32_t timeout_ms);
+
 private:
     void NewConnection(void);
 

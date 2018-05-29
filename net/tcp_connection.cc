@@ -27,6 +27,12 @@ CTcpConnection::CTcpConnection(CEventLoop* loop, int32_t connfd, CTcpServer* ser
 
 void CTcpConnection::RpcMsgCallback(void)
 {
+    if (NULL == m_server)
+    {
+        printf("this is a client connection read callback, do not finish\n");
+        return;
+    }
+
     RpcMeta rpc_meta;
     rpc_meta.ParseFromArray(m_rbuf->Data(), m_rbuf->Remain());
 
