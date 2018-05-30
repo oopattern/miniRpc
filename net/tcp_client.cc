@@ -86,70 +86,17 @@ void CTcpClient::NewConnection(void)
     // when client read event arrive, will call message callback
     m_connection->SetMessageCallback(m_message_callback);
 
+    // client connection finish, do register callback
+    if (m_connection_callback)
+    {
+        m_connection_callback(m_connection);
+    }
+
+#if 0
     const char* hint = "new connection, hello oopattern\n";
     m_connection->Send(hint, ::strlen(hint));
+#endif    
 }
 
-int32_t CTcpClient::RpcSendRecv(const char* send_buf, 
-                                int32_t send_len, 
-                                char* recv_buf, 
-                                int32_t recv_max_size, 
-                                int32_t timeout_ms)
-{
-    if ((m_connfd < 0) || (NULL == m_connection))
-    {
-        printf("tcp client connection is invalid error\n");
-        return ERROR;
-    }
 
-    // send packet to server until finish or fail
-    int32_t nsend = 0;
-    while (nsend < send_len)
-    {
-        int32_t n = ::send(m_connfd, send_buf + nsend, send_len - nsend, 0);
-        if (n < 0)
-        {
-            if (errno == EINTR)
-            {
-                continue;
-            }
-            
-            if ((errno != EAGAIN) && (errno != EWOULDBLOCK))
-            {
-                printf("rpc send error: %s\n", ::strerror(errno));
-                return ERROR;
-            }
-        }
-        else
-        {
-            nsend += n;            
-        }
-    }
-
-    // recv packet from server until timeout or fail
-    int32_t nrecv = -1;
-    while (nrecv <= 0)
-    {
-        nrecv = ::recv(m_connfd, recv_buf, recv_max_size, 0);
-        if (nrecv < 0)
-        {
-            if (errno == EINTR)
-            {
-                continue;
-            }
-            if (errno != EAGAIN && errno != EWOULDBLOCK)
-            {
-                printf("rpc recv error: %s\n", ::strerror(errno));
-                return ERROR;
-            }
-        }
-        else if (0 == nrecv)
-        {
-            printf("tcp server may shutdown read 0 error\n");
-            return ERROR;
-        }
-    }
-
-    return nrecv;
-}
 

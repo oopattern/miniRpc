@@ -5,11 +5,13 @@ option cc_generic_services = true;
 message EchoRequest
 {
     required string message = 1;
+    optional int32  sid = 2;
 };
 
 message EchoResponse
 {
     required string message = 1;
+    optional int32  rid = 2;
 };
 
 service CEchoService 

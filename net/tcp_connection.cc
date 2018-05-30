@@ -1,7 +1,8 @@
 #include <stdio.h>
-#include <unistd.h> // read, close
-#include <string.h> // strerror
-#include <errno.h>  // errno
+#include <sys/socket.h> // socket, bind, connect, listen, accept, send, recv
+#include <unistd.h>     // read, close
+#include <string.h>     // strerror
+#include <errno.h>      // errno
 #include "channel.h"
 #include "event_loop.h"
 #include "buffer.h"
@@ -9,6 +10,9 @@
 #include "tcp_server.h"
 #include "tcp_connection.h"
 
+
+// use RPC
+#define USE_RPC 1
 
 CTcpConnection::CTcpConnection(CEventLoop* loop, int32_t connfd, CTcpServer* server)
     : m_loop(loop),
@@ -34,19 +38,22 @@ void CTcpConnection::RpcMsgCallback(void)
     }
 
     RpcMeta rpc_meta;
-    rpc_meta.ParseFromArray(m_rbuf->Data(), m_rbuf->Remain());
+    std::string rpc_recv;
+    rpc_recv.assign(m_rbuf->Data(), m_rbuf->Remain());
+    //rpc_meta.ParseFromArray(m_rbuf->Data(), m_rbuf->Remain());
+    rpc_meta.ParseFromString(rpc_recv);
 
     // rpc_quest_meta to find rpc method service
     const RpcRequestMeta& request_meta = rpc_meta.request();
     std::string service_name = request_meta.service_name();
     std::string method_name = request_meta.method_name();
     std::string full_name = service_name + ":" + method_name;
-    printf("rpc service: %s method: %s\n", service_name.c_str(), method_name.c_str());
+    printf("rpc service_name: %s, method_name: %s\n", service_name.c_str(), method_name.c_str());
 
     TMethodProperty method_property;
     if (OK != m_server->FindService(full_name, method_property))
     {
-        printf("find service error\n");
+        printf("Rpc Server message callback find service error\n");
         return;
     }
 
@@ -59,7 +66,8 @@ void CTcpConnection::RpcMsgCallback(void)
     google::protobuf::Message* req_base = service->GetRequestPrototype(method).New();
     google::protobuf::Message* res_base = service->GetResponsePrototype(method).New();    
     std::string payload = rpc_meta.payload();
-    req_base->ParseFromArray(payload.c_str(), payload.size());
+    //req_base->ParseFromArray(payload.c_str(), payload.size());
+    req_base->ParseFromString(payload);
 
     // RPC call
     service->CallMethod(method, NULL, req_base, res_base, NULL);
@@ -89,6 +97,10 @@ void CTcpConnection::HandleRead(void)
     nread = ::read(m_channel->Fd(), buf, sizeof(buf));    
     if (nread > 0)
     {
+        // just for test 
+        //buf[nread] = '\0';
+        //printf("HandleRead recv content: %s\n", buf);
+
         m_rbuf->Append(buf, nread);
 
 #if USE_RPC 
@@ -177,6 +189,63 @@ void CTcpConnection::Send(const char* buf, int32_t len)
             m_channel->EnableWrite();
         }
     }
+}
+
+int32_t CTcpConnection::RpcSendRecv(const char* send_buf, 
+                                    int32_t send_len, 
+                                    char* recv_buf, 
+                                    int32_t recv_max_size, 
+                                    int32_t timeout_ms)
+{
+    // send packet to server until finish or fail
+    int32_t nsend = 0;
+    while (nsend < send_len)
+    {
+        int32_t n = ::send(m_channel->Fd(), send_buf + nsend, send_len - nsend, 0);
+        if (n < 0)
+        {
+            if (errno == EINTR)
+            {
+                continue;
+            }
+            
+            if ((errno != EAGAIN) && (errno != EWOULDBLOCK))
+            {
+                printf("rpc send error: %s\n", ::strerror(errno));
+                return ERROR;
+            }
+        }
+        else
+        {
+            nsend += n;            
+        }
+    }
+
+    // recv packet from server until timeout or fail
+    int32_t nrecv = -1;
+    while (nrecv <= 0)
+    {
+        nrecv = ::recv(m_channel->Fd(), recv_buf, recv_max_size, 0);
+        if (nrecv < 0)
+        {
+            if (errno == EINTR)
+            {
+                continue;
+            }
+            if (errno != EAGAIN && errno != EWOULDBLOCK)
+            {
+                printf("rpc recv error: %s\n", ::strerror(errno));
+                return ERROR;
+            }
+        }
+        else if (0 == nrecv)
+        {
+            printf("tcp server may shutdown read 0 error\n");
+            return ERROR;
+        }
+    }
+
+    return nrecv;
 }
 
 

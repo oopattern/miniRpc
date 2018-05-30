@@ -5,13 +5,13 @@
 #include "../net/net_common.h"
 
 
-class CTcpClient;
+class CTcpConnection;
 
 class CRpcChannel : public google::protobuf::RpcChannel
 {
 public:
-    CRpcChannel(CTcpClient* client) 
-        : m_client(client)
+    CRpcChannel(CTcpConnection* conn_ptr) 
+        : m_connection(conn_ptr)
     {
         
     }
@@ -23,7 +23,7 @@ public:
                             google::protobuf::Message* response,
                             google::protobuf::Closure* done);
 private:
-    CTcpClient* m_client;        
+    CTcpConnection* m_connection;
 };
 
 

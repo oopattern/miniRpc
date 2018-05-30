@@ -44,7 +44,7 @@ int32_t CTcpServer::FindService(const std::string& full_name, TMethodProperty& m
     MethodMap::iterator iter = m_method_map.find(full_name);
     if (iter == m_method_map.end())
     {
-        printf("find service: %s error", full_name.c_str());
+        printf("RPC find full_name: %s error\n", full_name.c_str());
         return ERROR;
     }
 
@@ -73,7 +73,7 @@ int32_t CTcpServer::AddService(google::protobuf::Service* service)
     {
         // key: service_name : method_name
         const google::protobuf::MethodDescriptor* md = sd->method(i);
-        std::string key = sd->full_name() + ":" + md->full_name();
+        std::string key = sd->full_name() + ":" + md->name();
         
         if (m_method_map.find(key) != m_method_map.end())
         {

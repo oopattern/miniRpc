@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <google/protobuf/descriptor.h> // MethodDescriptor
 #include <google/protobuf/message.h>    // Message
-#include "../net/tcp_client.h"
+#include "../net/tcp_connection.h"
 #include "std_rpc_meta.pb.h"
 #include "rpc_channel.h"
 
@@ -25,13 +25,12 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
     meta.set_payload(payload);
 
     std::string rpc_send;
-    std::string rpc_recv;
     meta.SerializeToString(&rpc_send);
 
     // send to server and wait for reply until timeout ms 
     int32_t timeout_ms = 0;
     char recv_buf[1024*10];
-    int32_t recv_len = m_client->RpcSendRecv(rpc_send.c_str(), rpc_send.size(), recv_buf, sizeof(recv_buf), timeout_ms);
+    int32_t recv_len = m_connection->RpcSendRecv(rpc_send.c_str(), rpc_send.size(), recv_buf, sizeof(recv_buf), timeout_ms);
     if (recv_len <= 0)
     {
         printf("Rpc call method send or recv error\n");
@@ -40,13 +39,17 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
     
     // analysis from response, finish rpc call
     RpcMeta back_meta;
-    back_meta.ParseFromArray(recv_buf, recv_len);
+    std::string rpc_recv;    
+    rpc_recv.assign(recv_buf, recv_len);
+    //back_meta.ParseFromArray(recv_buf, recv_len);
+    back_meta.ParseFromString(rpc_recv);
     RpcResponseMeta* response_meta = back_meta.mutable_response();
     int32_t error_code = response_meta->error_code();
     if (0 == error_code)
     {
         std::string back_payload = back_meta.payload();
-        response->ParseFromArray(back_payload.c_str(), back_payload.size());
-        printf("Rpc call success, welcome to finish\n");
+        //response->ParseFromArray(back_payload.c_str(), back_payload.size());
+        response->ParseFromString(back_payload);
+        printf("client Rpc call success, welcome to finish\n");
     }
 }

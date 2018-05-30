@@ -55,7 +55,8 @@ typedef std::map<std::string, CTcpConnection*>  ConnectionMap;
 typedef std::map<std::string, TMethodProperty> MethodMap;
 
 typedef std::function<void()> EventCallback;
-typedef std::function<void(int32_t connfd)> NewConnectionCallback;
+typedef std::function<void(int32_t connfd)> NewConnectionCallback; // use for accept new connection
+typedef std::function<void(CTcpConnection* conn_ptr)> ConnectionCallback; // use for client connect with server
 typedef std::function<void(CTcpConnection* conn_ptr, char* buf, int32_t len)> MessageCallback;
 
 
