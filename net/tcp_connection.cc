@@ -48,7 +48,7 @@ void CTcpConnection::RpcMsgCallback(void)
     std::string service_name = request_meta.service_name();
     std::string method_name = request_meta.method_name();
     std::string full_name = service_name + ":" + method_name;
-    printf("rpc service_name: %s, method_name: %s\n", service_name.c_str(), method_name.c_str());
+    //printf("rpc service_name: %s, method_name: %s\n", service_name.c_str(), method_name.c_str());
 
     TMethodProperty method_property;
     if (OK != m_server->FindService(full_name, method_property))
@@ -85,7 +85,7 @@ void CTcpConnection::RpcMsgCallback(void)
     rpc_back_meta.SerializeToString(&client_msg);
     Send(client_msg.c_str(), client_msg.size());
 
-    printf("finish rpc call\n");
+    //printf("finish rpc call\n");
 }
 
 void CTcpConnection::HandleRead(void)

@@ -7,7 +7,7 @@ void CEchoServiceImpl::Echoxxx(google::protobuf::RpcController* cntl,
                             EchoResponse* response,
                             google::protobuf::Closure* done)
 {
-    printf("request msg: %s\n", request->message().c_str());
+    //printf("request msg: %s\n", request->message().c_str());
     response->set_message(request->message());
     response->set_rid(2333);
 }

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include "../base/public.h"
 #include "../rpc/rpc_service.h"
 #include "../rpc/rpc_channel.h"
 
@@ -23,9 +24,16 @@ void CTestRpcNet::TestRpcMethod(CTcpConnection* conn_ptr)
     request.set_message("hello sakula");
     request.set_sid(6666);
     CEchoService_Stub stub(&rpc_channel);
-    stub.Echoxxx(NULL, &request, &response, NULL);
-    
-    printf("response, message: %s, rid:%d\n", response.message().c_str(), response.rid());
+
+    int32_t call_times = 100000;
+    printf("Client RPC call times=%d\n", call_times);
+    printf("Client RPC start time: %s\n", CUtils::GetCurrentTime());
+    for (int32_t i = 0; i < call_times; ++i)
+    {
+        stub.Echoxxx(NULL, &request, &response, NULL);    
+        //printf("response, message: %s, rid:%d\n", response.message().c_str(), response.rid());
+    }    
+    printf("Client RPC   end time: %s\n", CUtils::GetCurrentTime());
 }
 
 void CTestRpcNet::TestRpcClient(void)

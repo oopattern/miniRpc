@@ -50,6 +50,6 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
         std::string back_payload = back_meta.payload();
         //response->ParseFromArray(back_payload.c_str(), back_payload.size());
         response->ParseFromString(back_payload);
-        printf("client Rpc call success, welcome to finish\n");
+        //printf("client Rpc call success, welcome to finish\n");
     }
 }
