@@ -1,11 +1,12 @@
 syntax="proto2";
 
 
+// payload care about is not string, because payload is an object from other proto
 message RpcMeta
 {
     optional RpcRequestMeta request = 1;
     optional RpcResponseMeta response = 2;
-    optional string payload = 3;
+    optional bytes payload = 3;
 };
 
 message RpcRequestMeta
