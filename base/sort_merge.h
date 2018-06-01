@@ -8,7 +8,7 @@
 #include <vector>
 #include "block_queue.h"
 #include "public.h"
-#include "../btree/btree_map.h"
+#include "../third_party/btree/btree_map.h"
 
 
 class CSortMerge

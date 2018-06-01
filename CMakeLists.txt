@@ -10,6 +10,9 @@ set(CMAKE_BUILD_TYPE "Debug")
 set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -std=c++11 -O0 -g -ggdb -pthread")
 set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3 -Wall")
 
+# assembly language support in CMake
+set_property(SOURCE third_party/libco/coctx_swap.S PROPERTY LANGUAGE C)
+
 # auto generate *.pb.cc and *.pb.h from proto
 # command: # proto --cpp_out=out_dir --proto_path=in_dir path/to/.proto
 # --cpp_out: for output dir, *.pb.cc and *.pb.h
@@ -21,6 +24,11 @@ execute_process(COMMAND protoc --cpp_out=${CMAKE_CURRENT_BINARY_DIR}/rpc/
 
 add_executable( demo 
                 main.cc
+                third_party/libco/co_epoll.cpp
+                third_party/libco/co_routine.cpp
+                third_party/libco/co_hook_sys_call.cpp
+                third_party/libco/coctx.cpp
+                third_party/libco/coctx_swap.S
                 net/buffer.cc
                 net/acceptor.cc
                 net/channel.cc
@@ -33,6 +41,7 @@ add_executable( demo
                 rpc/std_rpc_meta.pb.cc
                 rpc/rpc_service.cc
                 rpc/rpc_channel.cc
+                rpc/rpc_coroutine.cc
                 shm/shm_alloc.cc
                 shm/shm_hash.cc
                 shm/shm_queue.cc
@@ -41,8 +50,10 @@ add_executable( demo
                 base/thread.cc
                 base/public.cc )
 
-# LINKFLAG: -lrt: shm_open
+# LINKFLAG:
 # need after the target
-# pthread use for mutli pthread
-# protobuf user for protobuf and rpc
-target_link_libraries(demo rt pthread protobuf)
+# -lrt: use for shm_open
+# -lpthread: use for mutli pthread
+# -lprotobuf: use for protobuf and rpc
+# -ldl: use for dlsym 
+target_link_libraries(demo rt pthread protobuf dl)

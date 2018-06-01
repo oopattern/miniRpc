@@ -27,7 +27,25 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
     std::string rpc_send;
     meta.SerializeToString(&rpc_send);
 
-    // send to server and wait for reply until timeout ms 
+    // send message to server
+    m_connection->Send(rpc_send.c_str(), rpc_send.size());
+
+    // coroutine suspend and wait for recv message
+    // TODO: code not finish... : should add timeout to check out
+    m_connection->RpcClientYield();
+
+    // when recv message arrive, will resume coroutine to go on
+    std::vector<char> recv_data;
+    m_connection->RpcClientMsg(recv_data);
+
+    if (recv_data.empty())
+    {
+        printf("rpc client recv error\n");
+        return;
+    }
+
+#if 0
+    // send to server and wait for reply until timeout ms     
     int32_t timeout_ms = 0;
     char recv_buf[1024*10];
     int32_t recv_len = m_connection->RpcSendRecv(rpc_send.c_str(), rpc_send.size(), recv_buf, sizeof(recv_buf), timeout_ms);
@@ -36,11 +54,12 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
         printf("Rpc call method send or recv error\n");
         return;
     }
+#endif    
     
     // analysis from response, finish rpc call
     RpcMeta back_meta;
-    std::string rpc_recv;    
-    rpc_recv.assign(recv_buf, recv_len);
+    std::string rpc_recv; 
+    rpc_recv.assign(&recv_data[0], recv_data.size());
     //back_meta.ParseFromArray(recv_buf, recv_len);
     back_meta.ParseFromString(rpc_recv);
     RpcResponseMeta* response_meta = back_meta.mutable_response();

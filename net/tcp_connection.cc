@@ -7,6 +7,7 @@
 #include "event_loop.h"
 #include "buffer.h"
 #include "../rpc/std_rpc_meta.pb.h"
+#include "../rpc/rpc_coroutine.h"
 #include "tcp_server.h"
 #include "tcp_connection.h"
 
@@ -19,17 +20,45 @@ CTcpConnection::CTcpConnection(CEventLoop* loop, int32_t connfd, CTcpServer* ser
       m_channel(new CChannel(loop, connfd)),
       m_server(server),
       m_rbuf(new CBuffer),
-      m_wbuf(new CBuffer)
+      m_wbuf(new CBuffer),
+      m_coroutine(new CRpcCoroutine)
 {
     m_channel->SetReadCallback(std::bind(&CTcpConnection::HandleRead, this));
     m_channel->SetWriteCallback(std::bind(&CTcpConnection::HandleWrite, this));
     m_channel->SetCloseCallback(std::bind(&CTcpConnection::HandleClose, this));
 
     // enable socket read
-    m_channel->EnableRead();
+    m_channel->EnableRead();        
+
+#if USE_RPC    
+    // rpc coroutine no routine func
+    if (0 > m_coroutine->Create(NULL, NULL))
+    {
+        ::exit(-1);
+    }
+#endif
 }
 
-void CTcpConnection::RpcMsgCallback(void)
+int32_t CTcpConnection::RpcClientYield(void)
+{
+    m_coroutine->Yield();
+}
+
+int32_t CTcpConnection::RpcClientResume(void)
+{
+    m_coroutine->Resume();
+}
+
+int32_t CTcpConnection::RpcClientMsg(std::vector<char>& recv_data)
+{
+    const char* start = m_rbuf->Data();
+    const char* end = m_rbuf->Data() + m_rbuf->Remain();
+    recv_data.assign(start, end);
+    
+    return m_rbuf->Remain();
+}
+
+void CTcpConnection::RpcServerMsg(void)
 {
     if (NULL == m_server)
     {
@@ -104,7 +133,17 @@ void CTcpConnection::HandleRead(void)
         m_rbuf->Append(buf, nread);
 
 #if USE_RPC 
-        RpcMsgCallback();
+        // server recv message from connection
+        if (m_server != NULL)
+        {
+            RpcServerMsg();
+        }
+        // client recv message from connection
+        else 
+        {
+            // client rpc resume, Channel::CallMethod will continue go on
+            RpcClientResume();
+        }
 #else 
         if (m_message_callback)
         {
