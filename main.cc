@@ -5,6 +5,7 @@
 #include "example/test_shm_queue.cc"
 #include "example/test_server_client.cc"
 #include "example/test_rpc_server_client.cc"
+#include "example/test_coroutine.cc"
 
 
 using namespace std;
@@ -50,13 +51,16 @@ void TestShm(void)
     printf("shm test finish.\n");
 }
 
+
+
 int main(void)
 {
     printf("hello world\n");    
     //CTestNet::TestTcpServer();
     //CTestNet::TestTcpClient();
     //CTestRpcNet::TestRpcServer();
-    CTestRpcNet::TestRpcClient();
+    //CTestRpcNet::TestRpcClient();
+    CTestCoroutine::TestCoroutine();
     return 0;
 }
 

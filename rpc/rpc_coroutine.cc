@@ -50,7 +50,8 @@ int32_t CRpcCoroutine::Create(void* (*routine)(void*), void* arg)
     m_co_id = CRpcCoroutine::GenerateCoroutineId();
     m_coroutine = co;   
     m_status = kCoStop;
-    
+
+    printf("rpc coroutine id=%d create success\n", m_co_id);
     return m_co_id;
 }
 
@@ -63,6 +64,7 @@ void CRpcCoroutine::Yield(void)
     }
 
     m_status = kCoSuspend;
+    //printf("Yield co_id=%d coroutine status=%d\n", m_co_id, m_status);
     co_yield_ct();
 }
 
@@ -74,11 +76,15 @@ void CRpcCoroutine::Resume(void)
         return;
     }
 
-    if (m_status != kCoSuspend)
+    //printf("Resume co_id=%d coroutine status=%d\n", m_co_id, m_status);
+
+#if 0
+    if ((m_status != kCoSuspend) && (m_status != kCoStop))
     {
         printf("rpc coroutine id=%d status=%d error\n", m_co_id, m_status);
         return;
     }
+#endif    
 
     m_status = kCoRunning;
     co_resume(m_coroutine);

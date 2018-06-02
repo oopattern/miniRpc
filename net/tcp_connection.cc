@@ -142,6 +142,7 @@ void CTcpConnection::HandleRead(void)
         else 
         {
             // client rpc resume, Channel::CallMethod will continue go on
+            printf("HandleRead client recv msg, need to resume coroutine\n");
             RpcClientResume();
         }
 #else 

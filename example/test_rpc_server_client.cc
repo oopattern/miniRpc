@@ -25,7 +25,7 @@ void CTestRpcNet::TestRpcMethod(CTcpConnection* conn_ptr)
     request.set_sid(6666);
     CEchoService_Stub stub(&rpc_channel);
 
-    int32_t call_times = 100000;
+    int32_t call_times = 1;
     printf("Client RPC call times=%d\n", call_times);
     printf("Client RPC start time: %s\n", CUtils::GetCurrentTime());
     for (int32_t i = 0; i < call_times; ++i)

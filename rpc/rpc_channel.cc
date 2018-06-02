@@ -29,10 +29,13 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
 
     // send message to server
     m_connection->Send(rpc_send.c_str(), rpc_send.size());
+    printf("rpc client send msg, coroutine suspend\n");
 
     // coroutine suspend and wait for recv message
     // TODO: code not finish... : should add timeout to check out
     m_connection->RpcClientYield();
+
+    printf("rpc client recv msg, coroutine resume\n");
 
     // when recv message arrive, will resume coroutine to go on
     std::vector<char> recv_data;
