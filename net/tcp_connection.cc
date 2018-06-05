@@ -7,6 +7,7 @@
 #include "event_loop.h"
 #include "buffer.h"
 #include "../rpc/std_rpc_meta.pb.h"
+#include "../rpc/rpc_channel.h"
 #include "../rpc/rpc_coroutine.h"
 #include "tcp_server.h"
 #include "tcp_connection.h"
@@ -15,13 +16,13 @@
 // use RPC
 #define USE_RPC 1
 
+
 CTcpConnection::CTcpConnection(CEventLoop* loop, int32_t connfd, CTcpServer* server)
     : m_loop(loop),
       m_channel(new CChannel(loop, connfd)),
       m_server(server),
       m_rbuf(new CBuffer),
-      m_wbuf(new CBuffer),
-      m_coroutine(new CRpcCoroutine)
+      m_wbuf(new CBuffer)
 {
     m_channel->SetReadCallback(std::bind(&CTcpConnection::HandleRead, this));
     m_channel->SetWriteCallback(std::bind(&CTcpConnection::HandleWrite, this));
@@ -29,36 +30,71 @@ CTcpConnection::CTcpConnection(CEventLoop* loop, int32_t connfd, CTcpServer* ser
 
     // enable socket read
     m_channel->EnableRead();        
+}
 
-#if USE_RPC    
-    // rpc coroutine no routine func
-    if (0 > m_coroutine->Create(NULL, NULL))
+void CTcpConnection::GetRpcCall(TRpcCall& rpc_call)
+{
+    rpc_call = m_rpc_call;
+}
+
+int32_t CTcpConnection::CreateCoroutine(void* (*routine)(void*), void* arg)
+{
+    CRpcCoroutine* rpc_co = new CRpcCoroutine();
+
+    int32_t co_id = rpc_co->Create(routine, arg);
+    if (co_id < 0)
     {
-        ::exit(-1);
+        printf("tcp connection create coroutine error\n");
+        return ERROR;
     }
-#endif
+
+    // register new coroutine
+    m_rpc_call.rpc_co = rpc_co;
+    return OK;
 }
 
-int32_t CTcpConnection::RpcClientYield(void)
+int32_t CTcpConnection::ResumeCoroutine(void)
 {
-    m_coroutine->Yield();
+    if (NULL == m_rpc_call.rpc_co)
+    {
+        printf("resume tcp connection no coroutine error\n");
+        return ERROR;
+    }
+
+    m_rpc_call.rpc_co->Resume();
+    return OK;
 }
 
-int32_t CTcpConnection::RpcClientResume(void)
+int32_t CTcpConnection::YieldCoroutine(void)
 {
-    m_coroutine->Resume();
+    if (NULL == m_rpc_call.rpc_co)
+    {
+        printf("yield tcp connection no coroutine error\n");
+        return ERROR;
+    }
+
+    m_rpc_call.rpc_co->Yield();
+    return OK;
 }
 
-int32_t CTcpConnection::RpcClientMsg(std::vector<char>& recv_data)
+void CTcpConnection::RpcClientMsg(const char* recv_buf, int32_t recv_len)
 {
-    const char* start = m_rbuf->Data();
-    const char* end = m_rbuf->Data() + m_rbuf->Remain();
-    recv_data.assign(start, end);
-    
-    return m_rbuf->Remain();
+    if (NULL == m_rpc_call.rpc_co)
+    {
+        printf("tcp client no coroutine error\n");
+        return;
+    }
+
+    //printf("HandleRead client recv msg, need to resume coroutine\n");
+    m_rpc_call.recv_buf = recv_buf;
+    m_rpc_call.recv_len = recv_len;
+    m_rpc_call.rpc_co->Resume();
+
+    // TODO: code not finish, need to destroy coroutine
+    m_rpc_call.rpc_co = NULL;
 }
 
-void CTcpConnection::RpcServerMsg(void)
+void CTcpConnection::RpcServerMsg(const char* recv_buf, int32_t recv_len)
 {
     if (NULL == m_server)
     {
@@ -68,7 +104,7 @@ void CTcpConnection::RpcServerMsg(void)
 
     RpcMeta rpc_meta;
     std::string rpc_recv;
-    rpc_recv.assign(m_rbuf->Data(), m_rbuf->Remain());
+    rpc_recv.assign(recv_buf, recv_len);
     //rpc_meta.ParseFromArray(m_rbuf->Data(), m_rbuf->Remain());
     rpc_meta.ParseFromString(rpc_recv);
 
@@ -136,14 +172,12 @@ void CTcpConnection::HandleRead(void)
         // server recv message from connection
         if (m_server != NULL)
         {
-            RpcServerMsg();
+            RpcServerMsg((char*)m_rbuf->Data(), m_rbuf->Remain());
         }
         // client recv message from connection
         else 
         {
-            // client rpc resume, Channel::CallMethod will continue go on
-            printf("HandleRead client recv msg, need to resume coroutine\n");
-            RpcClientResume();
+            RpcClientMsg((char*)m_rbuf->Data(), m_rbuf->Remain());           
         }
 #else 
         if (m_message_callback)

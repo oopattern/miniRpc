@@ -2,38 +2,45 @@
 #include "../base/public.h"
 #include "../rpc/rpc_service.h"
 #include "../rpc/rpc_channel.h"
+#include "../net/tcp_connection.h"
 
 
 class CTestRpcNet
 {
 public:
-    static void TestRpcMethod(CTcpConnection* conn_ptr);
     static void TestRpcClient(void);
     static void TestRpcServer(void);
+    static void TestCoroutine(CTcpConnection* conn_prt);
 };
 
-void CTestRpcNet::TestRpcMethod(CTcpConnection* conn_ptr)
+void* Routine(void* arg)
 {
     // register rpc channel to stub
     // when client do rpc call, will process rcp channel callmethod actually
-    //google::protobuf::RpcController rpc_cntl;
-    //CRpcCntl rpc_cntl;
+    // google::protobuf::RpcController rpc_cntl;
+    // CRpcCntl rpc_cntl;
+
+    CTcpConnection* conn_ptr = (CTcpConnection*)arg;
+
     CRpcChannel rpc_channel(conn_ptr);
     EchoRequest request;
     EchoResponse response;
     request.set_message("hello sakula");
     request.set_sid(6666);
     CEchoService_Stub stub(&rpc_channel);
+    stub.Echoxxx(NULL, &request, &response, NULL);    
+    printf("response, message: %s, rid:%d\n", response.message().c_str(), response.rid());
 
-    int32_t call_times = 1;
-    printf("Client RPC call times=%d\n", call_times);
-    printf("Client RPC start time: %s\n", CUtils::GetCurrentTime());
-    for (int32_t i = 0; i < call_times; ++i)
-    {
-        stub.Echoxxx(NULL, &request, &response, NULL);    
-        //printf("response, message: %s, rid:%d\n", response.message().c_str(), response.rid());
-    }    
-    printf("Client RPC   end time: %s\n", CUtils::GetCurrentTime());
+    //printf("Client RPC start time: %s\n", CUtils::GetCurrentTime());
+    //printf("Client RPC   end time: %s\n", CUtils::GetCurrentTime());
+}
+
+void CTestRpcNet::TestCoroutine(CTcpConnection* conn_ptr)
+{
+    // build new coroutine, rpc call will execute in coroutine
+    // rpc call will send, then yield, wait for recv, wake up by other coroutine
+    conn_ptr->CreateCoroutine(Routine, conn_ptr);
+    conn_ptr->ResumeCoroutine();
 }
 
 void CTestRpcNet::TestRpcClient(void)
@@ -46,7 +53,7 @@ void CTestRpcNet::TestRpcClient(void)
     CEventLoop loop;
     CTcpClient client(&loop);
     // when client connection finish, will do rpc call
-    client.SetConnectionCallback(std::bind(&TestRpcMethod, _1));
+    client.SetConnectionCallback(std::bind(&TestCoroutine, _1));
     client.Connect(server_addr);
     // loop forever
     loop.Loop();

@@ -12,7 +12,7 @@ message RpcMeta
 message RpcRequestMeta
 {
     required string service_name = 1;
-    required string method_name = 2;
+    required string method_name = 2;    
 };
 
 message RpcResponseMeta

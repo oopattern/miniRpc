@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <google/protobuf/descriptor.h> // MethodDescriptor
 #include <google/protobuf/message.h>    // Message
+#include "../third_party/libco/co_routine.h"
+#include "../third_party/libco/co_routine_inner.h"
 #include "../net/tcp_connection.h"
 #include "std_rpc_meta.pb.h"
 #include "rpc_channel.h"
@@ -27,25 +29,22 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
     std::string rpc_send;
     meta.SerializeToString(&rpc_send);
 
-    // send message to server
-    m_connection->Send(rpc_send.c_str(), rpc_send.size());
-    printf("rpc client send msg, coroutine suspend\n");
+    m_connection->Send(rpc_send.c_str(), rpc_send.size());   
 
     // coroutine suspend and wait for recv message
     // TODO: code not finish... : should add timeout to check out
-    m_connection->RpcClientYield();
+    m_connection->YieldCoroutine();
 
-    printf("rpc client recv msg, coroutine resume\n");
-
-    // when recv message arrive, will resume coroutine to go on
-    std::vector<char> recv_data;
-    m_connection->RpcClientMsg(recv_data);
-
-    if (recv_data.empty())
+    // recv data in rpc_call
+    TRpcCall rpc_call;
+    m_connection->GetRpcCall(rpc_call);
+    if ((NULL == rpc_call.recv_buf) || (0 >= rpc_call.recv_len))
     {
-        printf("rpc client recv error\n");
+        printf("rpc client call method recv none error\n");
         return;
     }
+
+    //printf("rpc client recv msg, coroutine resume\n");
 
 #if 0
     // send to server and wait for reply until timeout ms     
@@ -62,7 +61,7 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
     // analysis from response, finish rpc call
     RpcMeta back_meta;
     std::string rpc_recv; 
-    rpc_recv.assign(&recv_data[0], recv_data.size());
+    rpc_recv.assign(rpc_call.recv_buf, rpc_call.recv_len);
     //back_meta.ParseFromArray(recv_buf, recv_len);
     back_meta.ParseFromString(rpc_recv);
     RpcResponseMeta* response_meta = back_meta.mutable_response();

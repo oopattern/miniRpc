@@ -25,7 +25,7 @@ public:
 
     void Resume(void);        
 
-    int32_t GetCoroutineId(void) const;
+    int32_t GetId(void) const;
 
 public:
     static int32_t GenerateCoroutineId(void);
@@ -38,8 +38,5 @@ private:
     // TODO: mutli pthread, since Concurrency, m_inc_coid should use atomic 
     static int32_t  m_inc_coid; // generate coroutine id by increase
 };
-
-// key: co_id, val: coroutine info
-//typedef std::map<int32_t, CRpcCoroutine*> RpcCoroutineMap;
 
 #endif

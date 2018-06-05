@@ -59,8 +59,7 @@ int main(void)
     //CTestNet::TestTcpServer();
     //CTestNet::TestTcpClient();
     //CTestRpcNet::TestRpcServer();
-    //CTestRpcNet::TestRpcClient();
-    CTestCoroutine::TestCoroutine();
+    CTestRpcNet::TestRpcClient();
     return 0;
 }
 
