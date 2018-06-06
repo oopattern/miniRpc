@@ -4,6 +4,7 @@
 #include "../third_party/libco/co_routine.h"
 #include "../third_party/libco/co_routine_inner.h"
 #include "../net/tcp_connection.h"
+#include "../net/packet_codec.h"
 #include "std_rpc_meta.pb.h"
 #include "rpc_channel.h"
 
@@ -17,6 +18,8 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
     std::string service_name = method->service()->name();
     std::string method_name = method->name();
 
+    printf("client callmethod service:%s, method:%s\n", service_name.c_str(), method_name.c_str());
+
     RpcMeta meta;
     RpcRequestMeta* request_meta = meta.mutable_request();
     request_meta->set_service_name(service_name);
@@ -26,10 +29,12 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
     request->SerializeToString(&payload);
     meta.set_payload(payload);
 
-    std::string rpc_send;
-    meta.SerializeToString(&rpc_send);
+    // build packet
+    char send_buf[PACKET_BUF_SIZE];
+    int32_t send_len = PACKET_BUF_SIZE;
+    CPacketCodec::BuildPacket(&meta, send_buf, send_len);
 
-    m_connection->Send(rpc_send.c_str(), rpc_send.size());   
+    m_connection->Send(send_buf, send_len);   
 
     // coroutine suspend and wait for recv message
     // TODO: code not finish... : should add timeout to check out

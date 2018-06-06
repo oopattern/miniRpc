@@ -14,6 +14,13 @@ CBuffer::~CBuffer()
 
 }
 
+// when packet error, should clear buf for next packet, or we can close connection directly
+void CBuffer::Clear(void)
+{
+    m_index = 0;
+    m_content.clear();
+}
+
 void CBuffer::Skip(int32_t len)
 {
     m_index += len;

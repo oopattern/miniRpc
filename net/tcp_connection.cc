@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <sys/socket.h> // socket, bind, connect, listen, accept, send, recv
+#include <arpa/inet.h>  // htonl, ntohl
 #include <unistd.h>     // read, close
 #include <string.h>     // strerror
 #include <errno.h>      // errno
@@ -10,6 +11,7 @@
 #include "../rpc/rpc_channel.h"
 #include "../rpc/rpc_coroutine.h"
 #include "tcp_server.h"
+#include "packet_codec.h"
 #include "tcp_connection.h"
 
 
@@ -85,9 +87,14 @@ void CTcpConnection::RpcClientMsg(const char* recv_buf, int32_t recv_len)
         return;
     }
 
+    // packet format: 
+    const char* msg_buf = recv_buf + 5;
+    int32_t msg_len = ::ntohl(*(int32_t*)(recv_buf + 1));
+    assert(msg_len < recv_len);
+
     //printf("HandleRead client recv msg, need to resume coroutine\n");
-    m_rpc_call.recv_buf = recv_buf;
-    m_rpc_call.recv_len = recv_len;
+    m_rpc_call.recv_buf = msg_buf;
+    m_rpc_call.recv_len = msg_len;
     m_rpc_call.rpc_co->Resume();
 
     // TODO: code not finish, need to destroy coroutine
@@ -102,9 +109,14 @@ void CTcpConnection::RpcServerMsg(const char* recv_buf, int32_t recv_len)
         return;
     }
 
+    // analysis and parse packet
+    const char* msg_buf = recv_buf + 5;
+    int32_t msg_len = ::ntohl(*(int32_t*)(recv_buf + 1));
+    assert(msg_len < recv_len);
+
     RpcMeta rpc_meta;
     std::string rpc_recv;
-    rpc_recv.assign(recv_buf, recv_len);
+    rpc_recv.assign(msg_buf, msg_len);
     //rpc_meta.ParseFromArray(m_rbuf->Data(), m_rbuf->Remain());
     rpc_meta.ParseFromString(rpc_recv);
 
@@ -137,7 +149,7 @@ void CTcpConnection::RpcServerMsg(const char* recv_buf, int32_t recv_len)
     // RPC call
     service->CallMethod(method, NULL, req_base, res_base, NULL);
 
-    // send response to client
+    // build response to client
     std::string back_payload;
     res_base->SerializeToString(&back_payload);
 
@@ -146,11 +158,12 @@ void CTcpConnection::RpcServerMsg(const char* recv_buf, int32_t recv_len)
     response_meta->set_error_code(0);
     rpc_back_meta.set_payload(back_payload);
 
-    std::string client_msg;
-    rpc_back_meta.SerializeToString(&client_msg);
-    Send(client_msg.c_str(), client_msg.size());
+    char send_buf[PACKET_BUF_SIZE];
+    int32_t send_len = PACKET_BUF_SIZE;
+    CPacketCodec::BuildPacket(&rpc_back_meta, send_buf, send_len);
 
-    //printf("finish rpc call\n");
+    // send response to client
+    Send(send_buf, send_len);
 }
 
 void CTcpConnection::HandleRead(void)
@@ -167,26 +180,41 @@ void CTcpConnection::HandleRead(void)
         //printf("HandleRead recv content: %s\n", buf);
 
         m_rbuf->Append(buf, nread);
+        
+        // check up complete packet
+        int32_t packet_len = CPacketCodec::CheckPacket((char*)m_rbuf->Data(), m_rbuf->Remain());
+        if (0 > packet_len)
+        {
+            m_rbuf->Clear();
+            printf("tcp connection recv msg error, may need to close\n");
+            return;
+        }
+        // packet not complete, may recv continue
+        else if (0 == packet_len)
+        {
+            return;
+        }
 
 #if USE_RPC 
         // server recv message from connection
         if (m_server != NULL)
         {
-            RpcServerMsg((char*)m_rbuf->Data(), m_rbuf->Remain());
+            RpcServerMsg((char*)m_rbuf->Data(), packet_len);
         }
         // client recv message from connection
         else 
         {
-            RpcClientMsg((char*)m_rbuf->Data(), m_rbuf->Remain());           
+            RpcClientMsg((char*)m_rbuf->Data(), packet_len);           
         }
 #else 
         if (m_message_callback)
         {
-            m_message_callback(this, (char*)m_rbuf->Data(), m_rbuf->Remain());
+            m_message_callback(this, (char*)m_rbuf->Data(), packet_len);
         }
 #endif
         
-        m_rbuf->Skip(nread);
+        // skip already read_len
+        m_rbuf->Skip(packet_len);
     }
     else if (0 == nread)
     {

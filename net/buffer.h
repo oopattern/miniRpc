@@ -17,6 +17,7 @@ public:
     void Append(const char* buf, int32_t len);
     int32_t Remain(void) const; // rest length in buf
     void Skip(int32_t len); // handle length in buf
+    void Clear(void);
 
 private:
     int32_t Size(void) const;
