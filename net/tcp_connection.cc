@@ -54,18 +54,17 @@ void CTcpConnection::RpcClientMsg(const char* recv_buf, int32_t recv_len)
         return;
     }
 
-    // packet format: 
-    const char* msg_buf = recv_buf + 5;
-    int32_t msg_len = ::ntohl(*(int32_t*)(recv_buf + 1));
-    assert(msg_len < recv_len);
+    RpcMeta head_meta;
+    if (OK != CPacketCodec::ParseHead(recv_buf, recv_len, &head_meta))
+    {
+        printf("client msg parse head error\n");
+        return;
+    }
 
-    RpcMeta back_meta;
-    std::string rpc_recv; 
-    rpc_recv.assign(msg_buf, msg_len);
-    back_meta.ParseFromString(rpc_recv);
-    RpcResponseMeta* response_meta = back_meta.mutable_response();
+    // find out coroutine id
+    RpcResponseMeta* response_meta = head_meta.mutable_response();
     int32_t coroutine_id = response_meta->coroutine_id();
-    
+
     CoroutineMap::iterator it = m_coroutine_map.find(coroutine_id);
     if (it == m_coroutine_map.end())
     {
@@ -75,8 +74,8 @@ void CTcpConnection::RpcClientMsg(const char* recv_buf, int32_t recv_len)
 
     // set rpc call back
     TRpcCall rpc_call;
-    rpc_call.recv_buf = msg_buf;
-    rpc_call.recv_len = msg_len;
+    rpc_call.recv_buf = recv_buf;
+    rpc_call.recv_len = recv_len;
     it->second->SetRpcCall(rpc_call);
 
     // resume the coroutine
@@ -95,31 +94,26 @@ void CTcpConnection::RpcServerMsg(const char* recv_buf, int32_t recv_len)
         return;
     }
 
-    // analysis and parse packet
-    const char* msg_buf = recv_buf + 5;
-    int32_t msg_len = ::ntohl(*(int32_t*)(recv_buf + 1));
-    assert(msg_len < recv_len);
-
-    RpcMeta rpc_meta;
-    std::string rpc_recv;
-    rpc_recv.assign(msg_buf, msg_len);
-    //rpc_meta.ParseFromArray(m_rbuf->Data(), m_rbuf->Remain());
-    rpc_meta.ParseFromString(rpc_recv);
-
+    // parse packet head
+    RpcMeta head_meta;
+    if (OK != CPacketCodec::ParseHead(recv_buf, recv_len, &head_meta))
+    {
+        printf("rpc server msg parse head error\n");
+        return;
+    }
+    
     // rpc_quest_meta to find rpc method service
-    const RpcRequestMeta& request_meta = rpc_meta.request();
+    const RpcRequestMeta& request_meta = head_meta.request();
     int32_t coroutine_id = request_meta.coroutine_id();
     std::string service_name = request_meta.service_name();
     std::string method_name = request_meta.method_name();
     std::string full_name = service_name + ":" + method_name;
-    //printf("rpc service_name: %s, method_name: %s\n", service_name.c_str(), method_name.c_str());
 
     TMethodProperty method_property;
     if (OK != m_server->FindService(full_name, method_property))
     {
         printf("Rpc Server message callback find service error\n");
-        ::exit(-1);
-        //return;
+        return;
     }
 
     // rpc_payload include request from client
@@ -130,27 +124,27 @@ void CTcpConnection::RpcServerMsg(const char* recv_buf, int32_t recv_len)
     // create request and response from method
     google::protobuf::Message* req_base = service->GetRequestPrototype(method).New();
     google::protobuf::Message* res_base = service->GetResponsePrototype(method).New();    
-    std::string payload = rpc_meta.payload();
-    //req_base->ParseFromArray(payload.c_str(), payload.size());
-    req_base->ParseFromString(payload);
+
+    // parse packet body
+    if (OK != CPacketCodec::ParseBody(recv_buf, recv_len, req_base))
+    {
+        printf("rpc server msg parse body packet error\n");
+        return;
+    }
 
     // RPC call
     service->CallMethod(method, NULL, req_base, res_base, NULL);
 
-    // build response to client
-    std::string back_payload;
-    res_base->SerializeToString(&back_payload);
-
-    RpcMeta rpc_back_meta;
-    RpcResponseMeta* response_meta = rpc_back_meta.mutable_response();
+    // build packet for response
+    RpcMeta back_meta;
+    RpcResponseMeta* response_meta = back_meta.mutable_response();
     response_meta->set_error_code(0);
     response_meta->set_coroutine_id(coroutine_id);
-    rpc_back_meta.set_payload(back_payload);
 
     char send_buf[PACKET_BUF_SIZE];
     int32_t send_len = PACKET_BUF_SIZE;
-    CPacketCodec::BuildPacket(&rpc_back_meta, send_buf, send_len);
-
+    CPacketCodec::BuildPacket(&back_meta, res_base, send_buf, send_len);
+    
     // send response to client
     Send(send_buf, send_len);
 }

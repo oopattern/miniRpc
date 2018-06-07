@@ -6,7 +6,7 @@ message RpcMeta
 {
     optional RpcRequestMeta request = 1;
     optional RpcResponseMeta response = 2;
-    optional bytes payload = 3;
+    /*optional bytes payload = 3;*/
 };
 
 message RpcRequestMeta
