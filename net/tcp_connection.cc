@@ -34,56 +34,23 @@ CTcpConnection::CTcpConnection(CEventLoop* loop, int32_t connfd, CTcpServer* ser
     m_channel->EnableRead();        
 }
 
-void CTcpConnection::GetRpcCall(TRpcCall& rpc_call)
+int32_t CTcpConnection::RegisterCoroutine(CRpcCoroutine* co)
 {
-    rpc_call = m_rpc_call;
-}
-
-int32_t CTcpConnection::CreateCoroutine(void* (*routine)(void*), void* arg)
-{
-    CRpcCoroutine* rpc_co = new CRpcCoroutine();
-
-    int32_t co_id = rpc_co->Create(routine, arg);
-    if (co_id < 0)
+    if (NULL == co)
     {
-        printf("tcp connection create coroutine error\n");
+        printf("tcp connection coroutine is NULL error\n");
         return ERROR;
     }
 
-    // register new coroutine
-    m_rpc_call.rpc_co = rpc_co;
-    return OK;
-}
-
-int32_t CTcpConnection::ResumeCoroutine(void)
-{
-    if (NULL == m_rpc_call.rpc_co)
-    {
-        printf("resume tcp connection no coroutine error\n");
-        return ERROR;
-    }
-
-    m_rpc_call.rpc_co->Resume();
-    return OK;
-}
-
-int32_t CTcpConnection::YieldCoroutine(void)
-{
-    if (NULL == m_rpc_call.rpc_co)
-    {
-        printf("yield tcp connection no coroutine error\n");
-        return ERROR;
-    }
-
-    m_rpc_call.rpc_co->Yield();
-    return OK;
+    int32_t co_id = co->GetId();
+    m_coroutine_map[co_id] = co;
 }
 
 void CTcpConnection::RpcClientMsg(const char* recv_buf, int32_t recv_len)
 {
-    if (NULL == m_rpc_call.rpc_co)
+    if ((NULL == recv_buf) || (0 >= recv_len))
     {
-        printf("tcp client no coroutine error\n");
+        printf("tcp client msg error\n");
         return;
     }
 
@@ -92,13 +59,32 @@ void CTcpConnection::RpcClientMsg(const char* recv_buf, int32_t recv_len)
     int32_t msg_len = ::ntohl(*(int32_t*)(recv_buf + 1));
     assert(msg_len < recv_len);
 
-    //printf("HandleRead client recv msg, need to resume coroutine\n");
-    m_rpc_call.recv_buf = msg_buf;
-    m_rpc_call.recv_len = msg_len;
-    m_rpc_call.rpc_co->Resume();
+    RpcMeta back_meta;
+    std::string rpc_recv; 
+    rpc_recv.assign(msg_buf, msg_len);
+    back_meta.ParseFromString(rpc_recv);
+    RpcResponseMeta* response_meta = back_meta.mutable_response();
+    int32_t coroutine_id = response_meta->coroutine_id();
+    
+    CoroutineMap::iterator it = m_coroutine_map.find(coroutine_id);
+    if (it == m_coroutine_map.end())
+    {
+        printf("rpc client msg can not find coroutine id=%d\n", coroutine_id);
+        return;
+    }
+
+    // set rpc call back
+    TRpcCall rpc_call;
+    rpc_call.recv_buf = msg_buf;
+    rpc_call.recv_len = msg_len;
+    it->second->SetRpcCall(rpc_call);
+
+    // resume the coroutine
+    it->second->Resume();
 
     // TODO: code not finish, need to destroy coroutine
-    m_rpc_call.rpc_co = NULL;
+    //printf("coroutine id=%d destroy\n", m_rpc_call.rpc_co->GetId());
+    //m_rpc_call.rpc_co = NULL;
 }
 
 void CTcpConnection::RpcServerMsg(const char* recv_buf, int32_t recv_len)
@@ -122,6 +108,7 @@ void CTcpConnection::RpcServerMsg(const char* recv_buf, int32_t recv_len)
 
     // rpc_quest_meta to find rpc method service
     const RpcRequestMeta& request_meta = rpc_meta.request();
+    int32_t coroutine_id = request_meta.coroutine_id();
     std::string service_name = request_meta.service_name();
     std::string method_name = request_meta.method_name();
     std::string full_name = service_name + ":" + method_name;
@@ -131,7 +118,8 @@ void CTcpConnection::RpcServerMsg(const char* recv_buf, int32_t recv_len)
     if (OK != m_server->FindService(full_name, method_property))
     {
         printf("Rpc Server message callback find service error\n");
-        return;
+        ::exit(-1);
+        //return;
     }
 
     // rpc_payload include request from client
@@ -156,6 +144,7 @@ void CTcpConnection::RpcServerMsg(const char* recv_buf, int32_t recv_len)
     RpcMeta rpc_back_meta;
     RpcResponseMeta* response_meta = rpc_back_meta.mutable_response();
     response_meta->set_error_code(0);
+    response_meta->set_coroutine_id(coroutine_id);
     rpc_back_meta.set_payload(back_payload);
 
     char send_buf[PACKET_BUF_SIZE];
@@ -173,20 +162,24 @@ void CTcpConnection::HandleRead(void)
     int32_t nread = 0;
 
     nread = ::read(m_channel->Fd(), buf, sizeof(buf));    
-    if (nread > 0)
+    if (0 >= nread)
     {
-        // just for test 
-        //buf[nread] = '\0';
-        //printf("HandleRead recv content: %s\n", buf);
-
-        m_rbuf->Append(buf, nread);
-        
+        printf("HandleRead happen error: %s\n", ::strerror(errno));
+        HandleClose();
+        return;
+    }
+    
+    // handle all recv msg in loop
+    m_rbuf->Append(buf, nread);
+    while (m_rbuf->Remain() > 0)
+    {
         // check up complete packet
         int32_t packet_len = CPacketCodec::CheckPacket((char*)m_rbuf->Data(), m_rbuf->Remain());
         if (0 > packet_len)
         {
             m_rbuf->Clear();
             printf("tcp connection recv msg error, may need to close\n");
+            HandleClose();
             return;
         }
         // packet not complete, may recv continue
@@ -195,7 +188,7 @@ void CTcpConnection::HandleRead(void)
             return;
         }
 
-#if USE_RPC 
+#if USE_RPC
         // server recv message from connection
         if (m_server != NULL)
         {
@@ -215,10 +208,6 @@ void CTcpConnection::HandleRead(void)
         
         // skip already read_len
         m_rbuf->Skip(packet_len);
-    }
-    else if (0 == nread)
-    {
-        HandleClose();
     }
 }
 

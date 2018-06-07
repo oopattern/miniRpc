@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "net_common.h"
-#include "../rpc/rpc_channel.h"
+#include "../rpc/rpc_coroutine.h"
 
 
 class CBuffer;
@@ -24,10 +24,7 @@ public:
     void SetMessageCallback(const MessageCallback& cb) { m_message_callback = cb; }
 
     // client rpc operation
-    void    GetRpcCall(TRpcCall& rpc_call);
-    int32_t CreateCoroutine(void* (*routine)(void*), void* arg);
-    int32_t ResumeCoroutine(void);
-    int32_t YieldCoroutine(void);
+    int32_t RegisterCoroutine(CRpcCoroutine* co);
     //int32_t DestroyCoroutine(void);
 
     int32_t RpcSendRecv(const char* send_buf, int32_t send_len, char* recv_buf, int32_t recv_max_size, int32_t timeout_ms);
@@ -50,7 +47,8 @@ private:
     CBuffer*        m_rbuf; // for tcp connection read event
     CBuffer*        m_wbuf; // for tcp connection write event
 
-    TRpcCall        m_rpc_call; // for coroutine of client connection
+    //RpcCallMap      m_rpc_map; // for coroutine of client connection    
+    CoroutineMap    m_coroutine_map;
 };
 
 #endif // end of __TCP_CONNECTION_H

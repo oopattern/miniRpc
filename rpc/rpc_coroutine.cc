@@ -1,5 +1,6 @@
 #include <stdio.h>
-#include <limits.h>
+#include <limits.h> // INT_MAX
+#include <assert.h> // assert
 #include "../third_party/libco/co_routine.h"
 #include "../third_party/libco/co_routine_inner.h"
 #include "rpc_coroutine.h"
@@ -7,17 +8,38 @@
 
 int32_t CRpcCoroutine::m_inc_coid = 0;
 
-CRpcCoroutine::CRpcCoroutine()
-    : m_co_id(-1),
-      m_coroutine(NULL),
-      m_status(kCoStop)
+CRpcCoroutine::CRpcCoroutine(void* (*routine)(void*), void* arg)
 {
+    stCoRoutine_t* co = NULL;
+    co_create(&co, NULL, routine, arg);    
 
+    if (NULL == co)
+    {
+        printf("coroutine create failed error\n");
+        ::exit(-1);
+    }
+    
+    m_co_id = CRpcCoroutine::GenerateCoroutineId();
+    m_coroutine = co;   
+    m_status = kCoStop;
+
+    // store coroutine object, use for get coroutine id
+    co->aSpec[0].value = this;
 }
 
 CRpcCoroutine::~CRpcCoroutine()
 {
 
+}
+
+void CRpcCoroutine::SetRpcCall(TRpcCall& rpc_call)
+{
+    m_rpc_call = rpc_call;
+}
+
+void CRpcCoroutine::GetRpcCall(TRpcCall& rpc_call)
+{
+    rpc_call = m_rpc_call;
 }
 
 int32_t CRpcCoroutine::GetId(void) const
@@ -34,25 +56,6 @@ int32_t CRpcCoroutine::GenerateCoroutineId(void)
     }
 
     return m_inc_coid;
-}
-
-int32_t CRpcCoroutine::Create(void* (*routine)(void*), void* arg)
-{
-    stCoRoutine_t* co = NULL;
-    co_create(&co, NULL, routine, arg);    
-
-    if (NULL == co)
-    {
-        printf("coroutine create failed error\n");
-        return -1;
-    }
-    
-    m_co_id = CRpcCoroutine::GenerateCoroutineId();
-    m_coroutine = co;   
-    m_status = kCoStop;
-
-    //printf("rpc coroutine id=%d create success\n", m_co_id);
-    return m_co_id;
 }
 
 void CRpcCoroutine::Yield(void)
@@ -79,6 +82,15 @@ void CRpcCoroutine::Resume(void)
     //printf("Resume co_id=%d coroutine status=%d\n", m_co_id, m_status);
     m_status = kCoRunning;
     co_resume(m_coroutine);
+}
+
+CRpcCoroutine* CRpcCoroutine::GetOwner(void)
+{
+    stCoRoutine_t* co = co_self();
+    assert(co != NULL);
+    CRpcCoroutine* rpc_co = (CRpcCoroutine*)(co->aSpec[0].value);
+    
+    return rpc_co;
 }
 
 

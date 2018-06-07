@@ -5,18 +5,7 @@
 #include "../net/net_common.h"
 
 
-class CRpcCoroutine;
 class CTcpConnection;
-
-typedef struct TRpcCall
-{
-    CRpcCoroutine*  rpc_co;
-    const char*     recv_buf;
-    int32_t         recv_len;
-    
-    // default construct, rpc_co must init NULL
-    TRpcCall() : rpc_co(NULL), recv_buf(NULL), recv_len(0) {}
-} TRpcCall;
 
 class CRpcChannel : public google::protobuf::RpcChannel
 {

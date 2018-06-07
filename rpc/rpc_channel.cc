@@ -1,11 +1,14 @@
 #include <stdio.h>
+#include <assert.h>
 #include <google/protobuf/descriptor.h> // MethodDescriptor
 #include <google/protobuf/message.h>    // Message
 #include "../third_party/libco/co_routine.h"
 #include "../third_party/libco/co_routine_inner.h"
 #include "../net/tcp_connection.h"
 #include "../net/packet_codec.h"
+#include "../base/public.h"
 #include "std_rpc_meta.pb.h"
+#include "rpc_coroutine.h"
 #include "rpc_channel.h"
 
 
@@ -18,12 +21,16 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
     std::string service_name = method->service()->name();
     std::string method_name = method->name();
 
-    printf("client callmethod service:%s, method:%s\n", service_name.c_str(), method_name.c_str());
+    CRpcCoroutine* rpc_co = CRpcCoroutine::GetOwner();
+    assert(rpc_co != NULL);
 
     RpcMeta meta;
     RpcRequestMeta* request_meta = meta.mutable_request();
     request_meta->set_service_name(service_name);
     request_meta->set_method_name(method_name);
+    request_meta->set_coroutine_id(rpc_co->GetId());
+
+    //printf("client callmethod coroutine_id:%d, service:%s, method:%s\n", rpc_co->GetId(), service_name.c_str(), method_name.c_str());
     
     std::string payload;
     request->SerializeToString(&payload);
@@ -38,18 +45,16 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
 
     // coroutine suspend and wait for recv message
     // TODO: code not finish... : should add timeout to check out
-    m_connection->YieldCoroutine();
+    rpc_co->Yield();
 
     // recv data in rpc_call
     TRpcCall rpc_call;
-    m_connection->GetRpcCall(rpc_call);
+    rpc_co->GetRpcCall(rpc_call);
     if ((NULL == rpc_call.recv_buf) || (0 >= rpc_call.recv_len))
     {
         printf("rpc client call method recv none error\n");
         return;
     }
-
-    //printf("rpc client recv msg, coroutine resume\n");
 
 #if 0
     // send to server and wait for reply until timeout ms     
@@ -77,5 +82,12 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
         //response->ParseFromArray(back_payload.c_str(), back_payload.size());
         response->ParseFromString(back_payload);
         //printf("client Rpc call success, welcome to finish\n");
+    }
+
+    static int32_t s_loop = 0;
+    s_loop++;
+    if (s_loop >= 80000)
+    {
+        printf("Client RPC   end time: %s\n", CUtils::GetCurrentTime());
     }
 }

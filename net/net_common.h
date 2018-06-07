@@ -25,6 +25,7 @@ using namespace std::placeholders;
 
 class CChannel;
 class CTcpConnection;
+class CRpcCoroutine;
 
 
 typedef enum 
@@ -46,9 +47,10 @@ typedef struct _tMethodProperty
     const google::protobuf::MethodDescriptor* method;
 } TMethodProperty;
 
-typedef std::map<int, CChannel*> ChannelMap;
-typedef std::vector<CChannel*>   ChannelList;
-typedef std::map<std::string, CTcpConnection*>  ConnectionMap;
+typedef std::map<int, CChannel*> ChannelMap; // key: channel fd, val: channel point
+typedef std::vector<CChannel*>   ChannelList; 
+typedef std::map<std::string, CTcpConnection*> ConnectionMap; // key: connection name, val: connection point
+typedef std::map<int32_t, CRpcCoroutine*> CoroutineMap; // key: co_id, val: coroutine point
 
 // key: service_name + method_name, val: method_property
 // one service may include many method

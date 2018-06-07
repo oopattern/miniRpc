@@ -23,8 +23,7 @@ void* CTestCoroutine::Routine(void* arg)
 void CTestCoroutine::TestNoCoroutine(void)
 {
     // if no routine register, there is no point, since nothing happen
-    CRpcCoroutine co;
-    co.Create(NULL, NULL);
+    CRpcCoroutine co(NULL, NULL);
     co.Resume();
     while (1)
     {
@@ -35,9 +34,8 @@ void CTestCoroutine::TestNoCoroutine(void)
 
 void CTestCoroutine::TestCoroutine(void)
 {
-    CRpcCoroutine co;
+    CRpcCoroutine co(Routine, &co);
     // just create routine, routine not running
-    co.Create(Routine, &co);
     // first resume: immediately run routine register by co_create
     co.Resume();
     // second resume: routine yield, continue routine to go on running

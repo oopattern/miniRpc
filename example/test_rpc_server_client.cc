@@ -29,22 +29,22 @@ void* Routine(void* arg)
     request.set_sid(6666);
     CEchoService_Stub stub(&rpc_channel);
     stub.Echoxxx(NULL, &request, &response, NULL);    
-    printf("response, message: %s, rid:%d\n", response.message().c_str(), response.rid());
+    //printf("response, message: %s, rid:%d\n", response.message().c_str(), response.rid());
 }
 
 void CTestRpcNet::TestCoroutine(CTcpConnection* conn_ptr)
 {
-    int32_t loop_times = 1;
+    int32_t loop_times = 80000;
 
     printf("Client RPC start time: %s\n", CUtils::GetCurrentTime());
     for (int32_t i = 0; i < loop_times; ++i)
     {
         // build new coroutine, rpc call will execute in coroutine
         // rpc call will send, then yield, wait for recv, wake up by other coroutine
-        conn_ptr->CreateCoroutine(Routine, conn_ptr);
-        conn_ptr->ResumeCoroutine();
+        CRpcCoroutine* coroutine = new CRpcCoroutine(Routine, conn_ptr);
+        conn_ptr->RegisterCoroutine(coroutine);
+        coroutine->Resume();
     }    
-    printf("Client RPC   end time: %s\n", CUtils::GetCurrentTime());
 }
 
 void CTestRpcNet::TestRpcClient(void)
