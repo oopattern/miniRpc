@@ -14,7 +14,7 @@ public:
 };
 
 static int32_t s_loop_times = 0;
-#define RPC_MAX_LOOP    200000
+#define RPC_MAX_LOOP    10000
 
 void* Routine(void* arg)
 {

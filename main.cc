@@ -58,8 +58,8 @@ int main(void)
     printf("hello world\n");    
     //CTestNet::TestTcpServer();
     //CTestNet::TestTcpClient();
-    //CTestRpcNet::TestRpcServer();
-    CTestRpcNet::TestRpcClient();
+    CTestRpcNet::TestRpcServer();
+    //CTestRpcNet::TestRpcClient();
     return 0;
 }
 

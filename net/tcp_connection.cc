@@ -63,6 +63,8 @@ int32_t CTcpConnection::DestroyCoroutine(CRpcCoroutine* co)
         return ERROR;
     }
 
+    assert(co == it->second);
+    
     co->Release();
     delete it->second;
     m_coroutine_map.erase(coroutine_id);
@@ -170,6 +172,10 @@ void CTcpConnection::RpcServerMsg(const char* recv_buf, int32_t recv_len)
     char send_buf[PACKET_BUF_SIZE];
     int32_t send_len = PACKET_BUF_SIZE;
     CPacketCodec::BuildPacket(&back_meta, res_base, send_buf, send_len);
+
+    // delete msg
+    delete req_base;
+    delete res_base;
     
     // send response to client
     Send(send_buf, send_len);
@@ -185,7 +191,7 @@ void CTcpConnection::HandleRead(void)
     if (0 >= nread)
     {
         printf("HandleRead happen error: %s\n", ::strerror(errno));
-        //HandleClose();
+        HandleClose();
         return;
     }
     
