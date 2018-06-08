@@ -44,6 +44,31 @@ int32_t CTcpConnection::RegisterCoroutine(CRpcCoroutine* co)
 
     int32_t co_id = co->GetId();
     m_coroutine_map[co_id] = co;
+    return OK;
+}
+
+int32_t CTcpConnection::DestroyCoroutine(CRpcCoroutine* co)
+{
+    if (NULL == co)
+    {
+        printf("tcp connection coroutine is NULL error\n");
+        return ERROR;
+    }
+
+    int32_t coroutine_id = co->GetId();
+    CoroutineMap::iterator it = m_coroutine_map.find(coroutine_id);
+    if (it == m_coroutine_map.end())
+    {
+        printf("destroy coroutine id = %d error\n", coroutine_id);
+        return ERROR;
+    }
+
+    co->Release();
+    delete it->second;
+    m_coroutine_map.erase(coroutine_id);
+    printf("coroutine id = %d release successful\n", coroutine_id);
+
+    return OK;  
 }
 
 void CTcpConnection::RpcClientMsg(const char* recv_buf, int32_t recv_len)
@@ -73,17 +98,18 @@ void CTcpConnection::RpcClientMsg(const char* recv_buf, int32_t recv_len)
     }
 
     // set rpc call back
+    CRpcCoroutine* rpc_co = it->second;
     TRpcCall rpc_call;
     rpc_call.recv_buf = recv_buf;
     rpc_call.recv_len = recv_len;
-    it->second->SetRpcCall(rpc_call);
+    rpc_co->SetRpcCall(rpc_call);
 
     // resume the coroutine
-    it->second->Resume();
+    rpc_co->Resume();
 
-    // TODO: code not finish, need to destroy coroutine
-    //printf("coroutine id=%d destroy\n", m_rpc_call.rpc_co->GetId());
-    //m_rpc_call.rpc_co = NULL;
+    // after finish coroutine, need to destroy it
+    // TODO: timeout need to destroy it
+    DestroyCoroutine(rpc_co);
 }
 
 void CTcpConnection::RpcServerMsg(const char* recv_buf, int32_t recv_len)
@@ -159,7 +185,7 @@ void CTcpConnection::HandleRead(void)
     if (0 >= nread)
     {
         printf("HandleRead happen error: %s\n", ::strerror(errno));
-        HandleClose();
+        //HandleClose();
         return;
     }
     

@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <arpa/inet.h>  // htonl, ntohl
-#include <google/protobuf/message.h>    // Message
+#include <google/protobuf/message.h> // Message
 #include "packet_codec.h"
 
 

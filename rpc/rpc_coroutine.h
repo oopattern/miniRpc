@@ -29,6 +29,7 @@ public:
 
     void Yield(void);
     void Resume(void);        
+    void Release(void);
     int32_t GetId(void) const;
 
     // for rpc call back

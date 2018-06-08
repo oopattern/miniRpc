@@ -13,6 +13,9 @@ public:
     static void TestCoroutine(CTcpConnection* conn_prt);
 };
 
+static int32_t s_loop_times = 0;
+#define RPC_MAX_LOOP    200000
+
 void* Routine(void* arg)
 {
     // register rpc channel to stub
@@ -30,14 +33,18 @@ void* Routine(void* arg)
     CEchoService_Stub stub(&rpc_channel);
     stub.Echoxxx(NULL, &request, &response, NULL);    
     //printf("response, message: %s, rid:%d\n", response.message().c_str(), response.rid());
+    
+    if (++s_loop_times >= RPC_MAX_LOOP)
+    {
+        printf("Client RPC loop = %d, end time: %s\n", RPC_MAX_LOOP, CUtils::GetCurrentTime());
+        s_loop_times = 0;
+    }
 }
 
 void CTestRpcNet::TestCoroutine(CTcpConnection* conn_ptr)
 {
-    int32_t loop_times = 80000;
-
     printf("Client RPC start time: %s\n", CUtils::GetCurrentTime());
-    for (int32_t i = 0; i < loop_times; ++i)
+    for (int32_t i = 0; i < RPC_MAX_LOOP; ++i)
     {
         // build new coroutine, rpc call will execute in coroutine
         // rpc call will send, then yield, wait for recv, wake up by other coroutine

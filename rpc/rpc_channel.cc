@@ -68,10 +68,5 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
         }
     }
 
-    static int32_t s_loop = 0;
-    s_loop++;
-    if (s_loop >= 80000)
-    {
-        printf("Client RPC   end time: %s\n", CUtils::GetCurrentTime());
-    }
+    printf("coroutine id = %d prepare to quit\n", rpc_co->GetId());
 }

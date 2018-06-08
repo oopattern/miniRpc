@@ -25,7 +25,7 @@ public:
 
     // client rpc operation
     int32_t RegisterCoroutine(CRpcCoroutine* co);
-    //int32_t DestroyCoroutine(void);
+    int32_t DestroyCoroutine(CRpcCoroutine* co);
 
     int32_t RpcSendRecv(const char* send_buf, int32_t send_len, char* recv_buf, int32_t recv_max_size, int32_t timeout_ms);
 

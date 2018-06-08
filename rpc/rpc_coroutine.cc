@@ -84,6 +84,22 @@ void CRpcCoroutine::Resume(void)
     co_resume(m_coroutine);
 }
 
+void CRpcCoroutine::Release(void)
+{
+    if ((NULL == m_coroutine) || (m_co_id <= 0))
+    {
+        printf("rpc release invalid coroutine id=%d error\n", m_co_id);
+        return;
+    }
+
+    co_release(m_coroutine);
+    m_coroutine = NULL;
+    m_co_id = -1;
+    m_status = kCoStop;
+    m_rpc_call.recv_buf = NULL;
+    m_rpc_call.recv_len = 0;
+}
+
 CRpcCoroutine* CRpcCoroutine::GetOwner(void)
 {
     stCoRoutine_t* co = co_self();
