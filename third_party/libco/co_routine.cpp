@@ -269,11 +269,11 @@ void inline Join( TLink*apLink,TLink *apOther )
 stStackMem_t* co_alloc_stackmem(unsigned int stack_size)
 {
 	stStackMem_t* stack_mem = (stStackMem_t*)malloc(sizeof(stStackMem_t));
-	printf("lidi malloc stStackMem_t = %p, size = %d\n", stack_mem, (int)sizeof(stStackMem_t));
+	//printf("lidi malloc stStackMem_t = %p, size = %d\n", stack_mem, (int)sizeof(stStackMem_t));
 	stack_mem->occupy_co= NULL;
 	stack_mem->stack_size = stack_size;
 	stack_mem->stack_buffer = (char*)malloc(stack_size);
-	printf("lidi malloc stack_buffer = %p, size = %d\n", stack_mem->stack_buffer, stack_size);
+	//printf("lidi malloc stack_buffer = %p, size = %d\n", stack_mem->stack_buffer, stack_size);
 	stack_mem->stack_bp = stack_mem->stack_buffer + stack_size;
 	return stack_mem;
 }
@@ -485,7 +485,7 @@ struct stCoRoutine_t *co_create_env( stCoRoutineEnv_t * env, const stCoRoutineAt
 	}
 
 	stCoRoutine_t *lp = (stCoRoutine_t*)malloc( sizeof(stCoRoutine_t) );
-	printf("lidi malloc stCoRoutine_t = %p, size = %d\n", lp, (int)sizeof(stCoRoutine_t));
+	//printf("lidi malloc stCoRoutine_t = %p, size = %d\n", lp, (int)sizeof(stCoRoutine_t));
 	
 	memset( lp,0,(long)(sizeof(stCoRoutine_t))); 
 
@@ -535,13 +535,13 @@ void co_free( stCoRoutine_t *co )
 {
     if (!co->cIsShareStack) 
     {   
-		printf("lidi free stack_buffer = %p\n", co->stack_mem->stack_buffer);
-		printf("lidi free stack_mem = %p\n", co->stack_mem);
+		//printf("lidi free stack_buffer = %p\n", co->stack_mem->stack_buffer);
+		//printf("lidi free stack_mem = %p\n", co->stack_mem);
         free(co->stack_mem->stack_buffer);
         free(co->stack_mem);
     }   
     free( co );
-	printf("lidi free co = %p\n", co);
+	//printf("lidi free co = %p\n", co);
 }
 void co_release( stCoRoutine_t *co )
 {
@@ -597,7 +597,7 @@ void save_stack_buffer(stCoRoutine_t* occupy_co)
 
 	occupy_co->save_buffer = (char*)malloc(len); //malloc buf;
 	occupy_co->save_size = len;
-	printf("lidi malloc save_buffer = %p, size = %d\n", occupy_co->save_buffer, len);
+	//printf("lidi malloc save_buffer = %p, size = %d\n", occupy_co->save_buffer, len);
 
 	memcpy(occupy_co->save_buffer, occupy_co->stack_sp, len);
 }

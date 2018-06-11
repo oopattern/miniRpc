@@ -36,12 +36,14 @@ CEventLoop* CTcpServer::GetNextLoop(void)
 {
     if (m_io_loop_vec.empty())
     {
+        printf("GetNextLoop connection use base loop\n");
         return m_base_loop;
     }
 
     assert(m_next_loop < m_io_loop_vec.size());
 
     CEventLoop* next_loop = m_io_loop_vec[m_next_loop++];
+    printf("GetNextLoop connection use io loop=%d\n", m_next_loop);
     if (m_next_loop >= m_io_loop_vec.size())
     {
         m_next_loop = 0;

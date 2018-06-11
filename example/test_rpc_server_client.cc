@@ -23,7 +23,7 @@ public:
 static int32_t s_loop_times = 0;
 static std::vector<CRpcCoroutine*> s_no_gc_coroutine_vec;
 static std::vector<stCoRoutine_t*> s_gc_coroutine_vec;
-#define RPC_MAX_LOOP    10000
+#define RPC_MAX_LOOP    5
 
 
 void* GcRoutine(void* arg)
@@ -94,19 +94,22 @@ void* Routine(void* arg)
 {
     // register rpc channel to stub
     // when client do rpc call, will process rcp channel callmethod actually
-    // google::protobuf::RpcController rpc_cntl;
-    // CRpcCntl rpc_cntl;
-
     CTcpConnection* conn_ptr = (CTcpConnection*)arg;
 
+    CRpcCntl rpc_cntl;
     CRpcChannel rpc_channel(conn_ptr);
     EchoRequest request;
     EchoResponse response;
     request.set_message("hello sakula");
     request.set_sid(6666);
     CEchoService_Stub stub(&rpc_channel);
-    stub.Echoxxx(NULL, &request, &response, NULL);    
-    //printf("response, message: %s, rid:%d\n", response.message().c_str(), response.rid());
+    stub.Echoxxx(&rpc_cntl, &request, &response, NULL);    
+
+    // check if rpc call successful, if rpc is failed, response is undefined, can not use !!!
+    if (!rpc_cntl.Failed())
+    {        
+        printf("response, message: %s, rid:%d\n", response.message().c_str(), response.rid());        
+    }
 
     if (++s_loop_times >= RPC_MAX_LOOP)
     {
@@ -154,6 +157,7 @@ void CTestRpcNet::TestRpcServer(void)
     CEventLoop loop;
     google::protobuf::Service* echo_service = new CEchoServiceImpl;    
     CTcpServer server(&loop, listen_addr);
+    server.SetThreadNum(3);
     server.AddService(echo_service);
     server.Start();
     loop.Loop();

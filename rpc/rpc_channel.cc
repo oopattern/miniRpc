@@ -18,6 +18,9 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
                              google::protobuf::Message* response,
                              google::protobuf::Closure* done)
 {
+    assert((method != NULL) && (cntl != NULL) && (request != NULL) && (response != NULL));    
+    CRpcCntl* rpc_cntl = (CRpcCntl*)cntl;
+
     std::string service_name = method->service()->name();
     std::string method_name = method->name();
 
@@ -33,7 +36,12 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
     // build packet
     char send_buf[PACKET_BUF_SIZE];
     int32_t send_len = PACKET_BUF_SIZE;
-    CPacketCodec::BuildPacket(&meta, request, send_buf, send_len);
+    if (OK != CPacketCodec::BuildPacket(&meta, request, send_buf, send_len))
+    {
+        rpc_cntl->SetFailed(RPC_OTHER_ERR);
+        printf("client call method build packet error\n");
+        return;
+    }
 
     m_connection->Send(send_buf, send_len);   
 
@@ -46,6 +54,7 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
     rpc_co->GetRpcCall(rpc_call);
     if ((NULL == rpc_call.recv_buf) || (0 >= rpc_call.recv_len))
     {
+        rpc_cntl->SetFailed(RPC_OTHER_ERR);
         printf("rpc client call method recv none error\n");
         return;
     }
@@ -53,19 +62,25 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
     RpcMeta head_meta;
     if (OK != CPacketCodec::ParseHead(rpc_call.recv_buf, rpc_call.recv_len, &head_meta))
     {
+        rpc_cntl->SetFailed(RPC_OTHER_ERR);
         printf("client call method parse head error\n");
         return;
     }
     
     RpcResponseMeta* response_meta = head_meta.mutable_response();
     int32_t error_code = response_meta->error_code();
-    if (0 == error_code)
+    if (0 != error_code)
     {
-        if (OK != CPacketCodec::ParseBody(rpc_call.recv_buf, rpc_call.recv_len, response))
-        {
-            printf("client call method parse body error\n");
-            return;
-        }
+        rpc_cntl->SetFailed(RPC_OTHER_ERR);
+        printf("rpc response with error code = %d\n", error_code);
+        return;
+    }
+    
+    if (OK != CPacketCodec::ParseBody(rpc_call.recv_buf, rpc_call.recv_len, response))
+    {
+        rpc_cntl->SetFailed(RPC_OTHER_ERR);
+        printf("client call method parse body error\n");
+        return;
     }
 
     printf("coroutine id = %d prepare to quit\n", rpc_co->GetId());
