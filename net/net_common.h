@@ -26,6 +26,8 @@ using namespace std::placeholders;
 class CChannel;
 class CTcpConnection;
 class CRpcCoroutine;
+class CThread;
+class CEventLoop;
 
 
 typedef enum 
@@ -47,6 +49,8 @@ typedef struct _tMethodProperty
     const google::protobuf::MethodDescriptor* method;
 } TMethodProperty;
 
+typedef std::vector<CThread*>    ThreadList;
+typedef std::vector<CEventLoop*> LoopList;
 typedef std::map<int, CChannel*> ChannelMap; // key: channel fd, val: channel point
 typedef std::vector<CChannel*>   ChannelList; 
 typedef std::map<std::string, CTcpConnection*> ConnectionMap; // key: connection name, val: connection point

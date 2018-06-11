@@ -2,14 +2,19 @@
 #include <google/protobuf/descriptor.h> // ServiceDescriptor
 #include "acceptor.h"
 #include "event_loop.h"
+#include "../base/thread.h"
 #include "tcp_connection.h"
 #include "tcp_server.h"
 
 
 CTcpServer::CTcpServer(CEventLoop* loop, TEndPoint& listen_addr)
-    : m_loop(loop),
-      m_acceptor(new CAcceptor(loop, listen_addr))
+    : m_base_loop(loop),
+      m_acceptor(new CAcceptor(m_base_loop, listen_addr))
 {
+    m_next_loop = 0;
+    m_io_thread_vec.clear();
+    m_io_loop_vec.clear();
+    
     m_acceptor->SetNewConnectionCallback(std::bind(&CTcpServer::NewConnection, this, _1));
 }
 
@@ -19,8 +24,54 @@ CTcpServer::~CTcpServer()
     // delete acceptor
 }
 
+void CTcpServer::IoLoopFunc(int32_t loop_idx)
+{
+    assert(loop_idx < m_io_loop_vec.size());
+    assert(m_io_thread_vec.size() == m_io_loop_vec.size());
+    CEventLoop* loop = m_io_loop_vec[loop_idx];
+    loop->Loop();
+}
+
+CEventLoop* CTcpServer::GetNextLoop(void)
+{
+    if (m_io_loop_vec.empty())
+    {
+        return m_base_loop;
+    }
+
+    assert(m_next_loop < m_io_loop_vec.size());
+
+    CEventLoop* next_loop = m_io_loop_vec[m_next_loop++];
+    if (m_next_loop >= m_io_loop_vec.size())
+    {
+        m_next_loop = 0;
+    }
+
+    return next_loop;
+}
+
+void CTcpServer::SetThreadNum(int32_t num_threads)
+{
+    for (int32_t i = 0; i < num_threads; ++i)
+    {
+        CThread* io_thread = new CThread(std::bind(&CTcpServer::IoLoopFunc, this, i));
+        CEventLoop* io_loop = new CEventLoop();
+        m_io_thread_vec.push_back(io_thread);
+        m_io_loop_vec.push_back(io_loop);
+    }
+}
+
 void CTcpServer::Start(void)
 {
+    // start io thread loop
+    assert(m_io_thread_vec.size() == m_io_loop_vec.size());
+    ThreadList::iterator it;
+    for (it = m_io_thread_vec.begin(); it != m_io_thread_vec.end(); ++it)
+    {
+        (*it)->Start();
+    }
+
+    // base thread loop for listen
     m_acceptor->Listen();   
 }
 
@@ -29,9 +80,11 @@ void CTcpServer::NewConnection(int32_t connfd)
     // find pthread to handle this connection
     printf("build new connection\n");
 
+    CEventLoop* io_loop = GetNextLoop();
+
     // build connection
     std::string name = std::to_string(connfd);
-    CTcpConnection* conn_ptr = new CTcpConnection(m_loop, connfd, this);
+    CTcpConnection* conn_ptr = new CTcpConnection(io_loop, connfd, this);
 
     // attach message callback
     conn_ptr->SetMessageCallback(m_message_callback);
