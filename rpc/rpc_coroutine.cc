@@ -18,7 +18,7 @@ CRpcCoroutine::CRpcCoroutine(void* (*routine)(void*), void* arg)
         printf("coroutine create failed error\n");
         ::exit(-1);
     }
-    
+
     m_co_id = CRpcCoroutine::GenerateCoroutineId();
     m_coroutine = co;   
     m_status = kCoStop;
@@ -92,6 +92,8 @@ void CRpcCoroutine::Release(void)
         return;
     }
 
+    //printf("delete stCoRoutine_t = %p\n", m_coroutine);
+
     co_release(m_coroutine);
     m_coroutine = NULL;
     m_co_id = -1;
@@ -108,5 +110,4 @@ CRpcCoroutine* CRpcCoroutine::GetOwner(void)
     
     return rpc_co;
 }
-
 

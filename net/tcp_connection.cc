@@ -109,6 +109,20 @@ void CTcpConnection::RpcClientMsg(const char* recv_buf, int32_t recv_len)
     // resume the coroutine
     rpc_co->Resume();
 
+#if 0
+    static int32_t s_max_rbuf = 0, s_max_wbuf = 0;
+    if (m_rbuf->Remain() > s_max_rbuf)
+    {
+        s_max_rbuf = m_rbuf->Remain();
+    }
+    if (m_wbuf->Remain() > s_max_wbuf)
+    {
+        s_max_wbuf = m_wbuf->Remain();
+    }
+    printf("id=%d, coroutine size=%d, m_rbuf size=%d, m_wbuf size=%d, max_rbuf=%d, max_wbuf=%d\n",
+            coroutine_id, (int32_t)m_coroutine_map.size(), m_rbuf->Remain(), m_wbuf->Remain(), s_max_rbuf, s_max_wbuf);
+#endif    
+
     // after finish coroutine, need to destroy it
     // TODO: timeout need to destroy it
     DestroyCoroutine(rpc_co);
