@@ -7,6 +7,13 @@ class CChannel;
 class CEventLoop;
 
 
+typedef enum 
+{
+    kTimerFuncStop = 0,
+    kTimerFuncRunning = 1,
+    kTimerFuncDelete = 2,
+} TimerFuncStat;
+
 class CTimer
 {
 public:
@@ -16,6 +23,7 @@ public:
           m_callback(cb),
           m_repeat(m_interval > 0)
     {
+        m_func_stat = kTimerFuncStop;
         m_sequence = ++m_num_create;   
     }
     ~CTimer() 
@@ -43,9 +51,31 @@ public:
         return m_repeat;
     }
 
-    void Run(void)
+    TimerFuncStat GetFuncStatus(void) const
     {
+        return m_func_stat;
+    }
+
+    void SetFuncStatus(TimerFuncStat stat)
+    {
+        m_func_stat = stat;
+    }
+
+    void Run(void)
+    {        
+        // exclude kTimerFuncDelete stat
+        if (kTimerFuncDelete != GetFuncStatus())
+        {
+            SetFuncStatus(kTimerFuncRunning);
+        }
+        
         m_callback();
+
+        // exclude kTimerFuncDelete stat
+        if (kTimerFuncDelete != GetFuncStatus())
+        {
+            SetFuncStatus(kTimerFuncStop);
+        }
     }
 
 private:    
@@ -53,6 +83,7 @@ private:
     int32_t         m_interval;
     TimerCallback   m_callback;
     bool            m_repeat;
+    TimerFuncStat   m_func_stat;
     int32_t         m_sequence;
     
     static int32_t  m_num_create;    

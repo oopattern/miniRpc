@@ -70,9 +70,18 @@ int32_t CTimerQueue::CancelTimer(int32_t timer_seq)
         }
         else
         {
-            printf("time queue cancel timer seq = %d\n", timer_seq);
-            delete timer;
-            it = m_timer_list.erase(it);
+            // if func is running, can not delete at once,
+            // because m_timer_list can not erase iterator twice
+            if (kTimerFuncRunning != timer->GetFuncStatus())
+            {
+                printf("time queue cancel timer seq = %d\n", timer_seq);
+                delete timer;
+                it = m_timer_list.erase(it);
+                return OK;
+            }
+
+            printf("timer func is running, need to delete later\n");
+            timer->SetFuncStatus(kTimerFuncDelete);
             return OK;
         }
     }
@@ -106,14 +115,14 @@ void CTimerQueue::HandleRead(void)
         it = m_timer_list.erase(it);
 
         // check if need to repeat
-        if (timer->Repeat())
+        if (!timer->Repeat() || (kTimerFuncDelete == timer->GetFuncStatus()))
         {
-            timer->Restart(now);
-            repeat_timer.insert(std::make_pair(timer->Expiration(), timer));
+            delete timer;
         }
         else
         {
-            delete timer;
+            timer->Restart(now);
+            repeat_timer.insert(std::make_pair(timer->Expiration(), timer));
         }
     }
 
