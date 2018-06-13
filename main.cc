@@ -6,6 +6,7 @@
 #include "example/test_server_client.cc"
 #include "example/test_rpc_server_client.cc"
 #include "example/test_coroutine.cc"
+#include "example/test_timer_queue.cc"
 
 
 using namespace std;
@@ -58,8 +59,9 @@ int main(void)
     printf("hello world\n");    
     //CTestNet::TestTcpServer();
     //CTestNet::TestTcpClient();
-    CTestRpcNet::TestRpcServer();
+    //CTestRpcNet::TestRpcServer();
     //CTestRpcNet::TestRpcClient();
+    CTestTimer::TestTimer();
     return 0;
 }
 

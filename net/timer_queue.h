@@ -10,10 +10,11 @@ class CEventLoop;
 class CTimer
 {
 public:
-    CTimer(int32_t when, const TimerCallback& cb)
+    CTimer(int32_t when, int32_t interval, const TimerCallback& cb)
         : m_expiration(when),
+          m_interval(interval),
           m_callback(cb),
-          m_repeat(false)
+          m_repeat(m_interval > 0)
     {
         m_sequence = ++m_num_create;   
     }
@@ -32,6 +33,11 @@ public:
         return m_sequence;
     }
 
+    void Restart(int32_t now)
+    {
+        m_expiration = now + m_interval;                
+    }
+
     bool Repeat(void) const 
     {
         return m_repeat;
@@ -44,6 +50,7 @@ public:
 
 private:    
     int32_t         m_expiration;
+    int32_t         m_interval;
     TimerCallback   m_callback;
     bool            m_repeat;
     int32_t         m_sequence;
@@ -59,7 +66,7 @@ public:
     CTimerQueue(CEventLoop* loop);
     ~CTimerQueue();
 
-    int32_t AddTimer(int32_t when, const TimerCallback& cb);    
+    int32_t AddTimer(int32_t when, int32_t interval, const TimerCallback& cb);    
     int32_t CancelTimer(int32_t timer_seq);
 
 public:
@@ -76,3 +83,4 @@ private:
     CChannel*   m_timer_channel;
     TimerList   m_timer_list;
 };
+

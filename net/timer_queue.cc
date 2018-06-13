@@ -36,7 +36,7 @@ CTimerQueue::~CTimerQueue()
     m_timer_list.clear();
 }
 
-int32_t CTimerQueue::AddTimer(int32_t when, const TimerCallback& cb)
+int32_t CTimerQueue::AddTimer(int32_t when, int32_t interval, const TimerCallback& cb)
 {
     // check if more early timer
     bool more_early = false;
@@ -46,7 +46,7 @@ int32_t CTimerQueue::AddTimer(int32_t when, const TimerCallback& cb)
         more_early = true;
     }
 
-    CTimer* timer = new CTimer(when, cb);
+    CTimer* timer = new CTimer(when, interval, cb);
     m_timer_list.insert(std::make_pair(when, timer));
 
     if (true == more_early)
@@ -59,13 +59,18 @@ int32_t CTimerQueue::AddTimer(int32_t when, const TimerCallback& cb)
 
 int32_t CTimerQueue::CancelTimer(int32_t timer_seq)
 {
-    TimerList::iterator it;
-    for (it = m_timer_list.begin(); it != m_timer_list.end(); ++it)
+    TimerList::iterator it = m_timer_list.begin();
+    
+    while (it != m_timer_list.end())
     {
         CTimer* timer = it->second;
-        if (timer_seq == timer->Sequence())
+        if (timer_seq != timer->Sequence())
         {
-            printf("time queue find timer seq = %d\n", timer_seq);
+            ++it;
+        }
+        else
+        {
+            printf("time queue cancel timer seq = %d\n", timer_seq);
             delete timer;
             it = m_timer_list.erase(it);
             return OK;
@@ -81,8 +86,11 @@ void CTimerQueue::HandleRead(void)
     int32_t now = ::time(NULL);
     ReadTimerFd(m_timer_fd);
 
-    TimerList::iterator it;
-    for (it = m_timer_list.begin(); it != m_timer_list.end(); ++it)
+    TimerList repeat_timer;
+    repeat_timer.clear();
+
+    TimerList::iterator it = m_timer_list.begin();
+    while (it != m_timer_list.end())
     {
         // key: expiration, val: ctimer*
         expiration = it->first;
@@ -94,9 +102,26 @@ void CTimerQueue::HandleRead(void)
         }
 
         // run timeout callback
-        timer->Run();            
-        delete timer;
+        timer->Run();
         it = m_timer_list.erase(it);
+
+        // check if need to repeat
+        if (timer->Repeat())
+        {
+            timer->Restart(now);
+            repeat_timer.insert(std::make_pair(timer->Expiration(), timer));
+        }
+        else
+        {
+            delete timer;
+        }
+    }
+
+    // resort timer queue
+    TimerList::iterator re_it;
+    for (re_it = repeat_timer.begin(); re_it != repeat_timer.end(); ++re_it)
+    {
+        m_timer_list.insert(*re_it);        
     }
 
     // reset next timer
@@ -143,7 +168,9 @@ int32_t CTimerQueue::ResetTimerFd(int32_t timer_fd, int32_t when)
     delta.tv_sec = when - now;
     delta.tv_nsec = 0;
     new_val.it_value = delta;
-    
+
+    //printf("reset timer fd when = %d, now = %d\n", when, now);
+
     if (0 > ::timerfd_settime(timer_fd, 0, &new_val, &old_val))
     {
         printf("timerfd settime error: %s\n", ::strerror(errno));
