@@ -38,6 +38,7 @@ add_executable( demo
                 net/tcp_server.cc
                 net/tcp_client.cc
                 net/packet_codec.cc
+                net/timer_queue.cc
                 rpc/echo.pb.cc
                 rpc/std_rpc_meta.pb.cc
                 rpc/rpc_service.cc
