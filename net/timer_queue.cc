@@ -3,6 +3,7 @@
 #include <unistd.h>     // read, close
 #include <sys/timerfd.h>// timerfd_create
 #include "channel.h"
+#include "../base/public.h"
 #include "timer_queue.h"
 
 
@@ -36,22 +37,22 @@ CTimerQueue::~CTimerQueue()
     m_timer_list.clear();
 }
 
-int32_t CTimerQueue::AddTimer(int32_t when, int32_t interval, const TimerCallback& cb)
+int32_t CTimerQueue::AddTimer(int64_t when_ms, int32_t interval_ms, const TimerCallback& cb)
 {
     // check if more early timer
     bool more_early = false;
     TimerList::iterator it = m_timer_list.begin();
-    if ((it == m_timer_list.end()) || (when < it->first))
+    if ((it == m_timer_list.end()) || (when_ms < it->first))
     {
         more_early = true;
     }
 
-    CTimer* timer = new CTimer(when, interval, cb);
-    m_timer_list.insert(std::make_pair(when, timer));
+    CTimer* timer = new CTimer(when_ms, interval_ms, cb);
+    m_timer_list.insert(std::make_pair(when_ms, timer));
 
     if (true == more_early)
     {
-        CTimerQueue::ResetTimerFd(m_timer_fd, when);
+        CTimerQueue::ResetTimerFd(m_timer_fd, when_ms);
     }       
 
     return timer->Sequence();
@@ -91,8 +92,8 @@ int32_t CTimerQueue::CancelTimer(int32_t timer_seq)
 
 void CTimerQueue::HandleRead(void)
 {
-    int32_t expiration = 0;
-    int32_t now = ::time(NULL);
+    int64_t expiration = 0;
+    int64_t now_ms = CUtils::NowMsec();
     ReadTimerFd(m_timer_fd);
 
     TimerList repeat_timer;
@@ -105,7 +106,8 @@ void CTimerQueue::HandleRead(void)
         expiration = it->first;
         CTimer* timer = it->second;
         
-        if (now > expiration)
+        // now time not reach expiration timeout
+        if (now_ms < expiration)
         {
             break;
         }
@@ -121,7 +123,7 @@ void CTimerQueue::HandleRead(void)
         }
         else
         {
-            timer->Restart(now);
+            timer->Restart(now_ms);
             repeat_timer.insert(std::make_pair(timer->Expiration(), timer));
         }
     }
@@ -163,7 +165,7 @@ int32_t CTimerQueue::ReadTimerFd(int32_t timer_fd)
     }
 }
 
-int32_t CTimerQueue::ResetTimerFd(int32_t timer_fd, int32_t when)
+int32_t CTimerQueue::ResetTimerFd(int32_t timer_fd, int64_t when_ms)
 {
     struct timespec delta;
     struct itimerspec new_val;
@@ -173,12 +175,10 @@ int32_t CTimerQueue::ResetTimerFd(int32_t timer_fd, int32_t when)
     ::bzero(&old_val, sizeof(old_val));
 
     // how much time from now
-    int32_t now = ::time(NULL);
-    delta.tv_sec = when - now;
-    delta.tv_nsec = 0;
+    int64_t now_ms = CUtils::NowMsec();
+    delta.tv_sec = (when_ms - now_ms) / 1000;
+    delta.tv_nsec = ((when_ms - now_ms) % 1000) * 1000000L;
     new_val.it_value = delta;
-
-    //printf("reset timer fd when = %d, now = %d\n", when, now);
 
     if (0 > ::timerfd_settime(timer_fd, 0, &new_val, &old_val))
     {

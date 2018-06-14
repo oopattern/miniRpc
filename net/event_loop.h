@@ -22,8 +22,8 @@ public:
     void UpdateChannel(CChannel* channel);
     void RemoveChannel(CChannel* channel);
 
-    int32_t RunAfter(int32_t delay, const TimerCallback& cb);
-    int32_t RunEvery(int32_t interval, const TimerCallback& cb);
+    int32_t RunAfter(int32_t delay_ms, const TimerCallback& cb);
+    int32_t RunEvery(int32_t interval_ms, const TimerCallback& cb);
     int32_t CancelTimer(int32_t timer_seq);
 
 private:

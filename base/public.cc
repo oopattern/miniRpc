@@ -122,6 +122,16 @@ char* CUtils::GetCurrentTime(void)
     return time;
 }
 
+int64_t CUtils::NowMsec(void)
+{
+    int64_t now_ms = 0;
+    struct timeval tv;
+
+    ::gettimeofday(&tv, NULL);
+    now_ms = (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
+    return now_ms;
+}
+
 // show magnitude
 char* CUtils::ShowMagnitude(unsigned long val)
 {

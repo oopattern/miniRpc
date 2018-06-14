@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <string>
+#include <stdint.h>
 #include <vector>
 
 using std::string;
@@ -21,6 +22,7 @@ public:
     static char* ShowMagnitude(unsigned long val);
     static char* GetCurrentTime(void);
     static long long TimeInMilliseconds(void);
+    static int64_t NowMsec(void);
 };
 
 

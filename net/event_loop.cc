@@ -2,6 +2,7 @@
 #include "epoll.h"
 #include "channel.h"
 #include "timer_queue.h"
+#include "../base/public.h"
 #include "event_loop.h"
 
 CEventLoop::CEventLoop()
@@ -45,16 +46,16 @@ void CEventLoop::RemoveChannel(CChannel* channel)
     m_epoller->RemoveChannel(channel);
 }
 
-int32_t CEventLoop::RunAfter(int32_t delay, const TimerCallback& cb)
+int32_t CEventLoop::RunAfter(int32_t delay_ms, const TimerCallback& cb)
 {
-    int32_t when = ::time(NULL) + delay;
-    return m_timer_queue->AddTimer(when, 0, cb);
+    int64_t when_ms = CUtils::NowMsec() + delay_ms;
+    return m_timer_queue->AddTimer(when_ms, 0, cb);
 }
 
-int32_t CEventLoop::RunEvery(int32_t interval, const TimerCallback& cb)
+int32_t CEventLoop::RunEvery(int32_t interval_ms, const TimerCallback& cb)
 {
-    int32_t when = ::time(NULL) + interval;
-    return m_timer_queue->AddTimer(when, interval, cb);
+    int64_t when_ms = CUtils::NowMsec() + interval_ms;
+    return m_timer_queue->AddTimer(when_ms, interval_ms, cb);
 }
 
 int32_t CEventLoop::CancelTimer(int32_t timer_seq)

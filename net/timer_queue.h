@@ -17,9 +17,9 @@ typedef enum
 class CTimer
 {
 public:
-    CTimer(int32_t when, int32_t interval, const TimerCallback& cb)
-        : m_expiration(when),
-          m_interval(interval),
+    CTimer(int64_t when_ms, int32_t interval_ms, const TimerCallback& cb)
+        : m_expiration(when_ms),
+          m_interval(interval_ms),
           m_callback(cb),
           m_repeat(m_interval > 0)
     {
@@ -31,7 +31,7 @@ public:
     
     }
 
-    int32_t Expiration(void) const
+    int64_t Expiration(void) const
     {
         return m_expiration;
     }
@@ -41,9 +41,9 @@ public:
         return m_sequence;
     }
 
-    void Restart(int32_t now)
+    void Restart(int64_t now_ms)
     {
-        m_expiration = now + m_interval;                
+        m_expiration = now_ms + m_interval;                
     }
 
     bool Repeat(void) const 
@@ -79,7 +79,7 @@ public:
     }
 
 private:    
-    int32_t         m_expiration;
+    int64_t         m_expiration;
     int32_t         m_interval;
     TimerCallback   m_callback;
     bool            m_repeat;
@@ -89,7 +89,7 @@ private:
     static int32_t  m_num_create;    
 };
 
-typedef std::map<int32_t, CTimer*> TimerList;
+typedef std::map<int64_t, CTimer*> TimerList;
 
 class CTimerQueue
 {
@@ -97,13 +97,13 @@ public:
     CTimerQueue(CEventLoop* loop);
     ~CTimerQueue();
 
-    int32_t AddTimer(int32_t when, int32_t interval, const TimerCallback& cb);    
+    int32_t AddTimer(int64_t when_ms, int32_t interval_ms, const TimerCallback& cb);    
     int32_t CancelTimer(int32_t timer_seq);
 
 public:
     static int32_t CreateTimerFd(void);
     static int32_t ReadTimerFd(int32_t timer_fd);
-    static int32_t ResetTimerFd(int32_t timer_fd, int32_t when);
+    static int32_t ResetTimerFd(int32_t timer_fd, int64_t when_ms);
 
 private:
     void HandleRead(void);    

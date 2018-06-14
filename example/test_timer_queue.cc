@@ -20,7 +20,7 @@ void CTestTimer::OnceFunc(void)
 
 void CTestTimer::RepeatFunc(CEventLoop* loop)
 {
-    if (++s_timer_loop_times >= 5)
+    if (++s_timer_loop_times >= 10)
     {
         loop->CancelTimer(s_cancel_timer_seq);
     }
@@ -34,7 +34,7 @@ void CTestTimer::TestTimer(void)
 
     CEventLoop loop;
     printf("test start time: %s\n", CUtils::GetCurrentTime());
-    //loop.RunAfter(3, std::bind(OnceFunc));
-    s_cancel_timer_seq = loop.RunEvery(5, std::bind(RepeatFunc, &loop));
+    //loop.RunAfter(2500, std::bind(OnceFunc));
+    s_cancel_timer_seq = loop.RunEvery(500, std::bind(RepeatFunc, &loop));
     loop.Loop();
 }
