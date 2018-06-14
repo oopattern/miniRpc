@@ -6,6 +6,7 @@
 #include "../third_party/libco/co_routine_inner.h"
 #include "../net/tcp_connection.h"
 #include "../net/packet_codec.h"
+#include "../net/event_loop.h"
 #include "../base/public.h"
 #include "std_rpc_meta.pb.h"
 #include "rpc_coroutine.h"
@@ -26,12 +27,13 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
 
     CRpcCoroutine* rpc_co = CRpcCoroutine::GetOwner();
     assert(rpc_co != NULL);
+    int32_t coroutine_id = rpc_co->GetId();
 
     RpcMeta meta;
     RpcRequestMeta* request_meta = meta.mutable_request();
     request_meta->set_service_name(service_name);
     request_meta->set_method_name(method_name);
-    request_meta->set_coroutine_id(rpc_co->GetId());
+    request_meta->set_coroutine_id(coroutine_id);
 
     // build packet
     char send_buf[PACKET_BUF_SIZE];
@@ -44,6 +46,8 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
     }
 
     m_connection->Send(send_buf, send_len);   
+    CEventLoop* loop = m_connection->GetLoop();
+    loop->RunAfter(RPC_TIMEOUT_MS, std::bind(&CTcpConnection::TimeoutCoroutine, m_connection, coroutine_id));
 
     // coroutine suspend and wait for recv message
     // TODO: code not finish... : should add timeout to check out
@@ -52,6 +56,16 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
     // recv data in rpc_call
     TRpcCall rpc_call;
     rpc_co->GetRpcCall(rpc_call);
+
+    // check out timeout first
+    if (true == rpc_call.is_timeout)
+    {
+        rpc_cntl->SetFailed(RPC_TIMEOUT_ERR);
+        printf("rpc client call method timeout error\n");
+        return;
+    }
+
+    // next check out other thing
     if ((NULL == rpc_call.recv_buf) || (0 >= rpc_call.recv_len))
     {
         rpc_cntl->SetFailed(RPC_OTHER_ERR);
@@ -83,5 +97,5 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
         return;
     }
 
-    printf("coroutine id = %d prepare to quit\n", rpc_co->GetId());
+    //printf("coroutine id = %d prepare to quit\n", coroutine_id);
 }

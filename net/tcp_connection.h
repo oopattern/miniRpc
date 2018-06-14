@@ -20,12 +20,13 @@ public:
     CTcpConnection(CEventLoop* loop, int32_t connfd, CTcpServer* server);
 
     void Send(const char* buf, int32_t len);
-
     void SetMessageCallback(const MessageCallback& cb) { m_message_callback = cb; }
+    CEventLoop* GetLoop(void) const { return m_loop; }
 
     // client rpc operation
-    int32_t RegisterCoroutine(CRpcCoroutine* co);
-    int32_t DestroyCoroutine(CRpcCoroutine* co);
+    int32_t RegisterCoroutine(int32_t coroutine_id, CRpcCoroutine* co);
+    int32_t DestroyCoroutine(int32_t coroutine_id);
+    int32_t TimeoutCoroutine(int32_t coroutine_id);
 
     int32_t RpcSendRecv(const char* send_buf, int32_t send_len, char* recv_buf, int32_t recv_max_size, int32_t timeout_ms);
 

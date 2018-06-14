@@ -8,7 +8,7 @@
 typedef enum 
 {
     RPC_SUC         = 0,
-    RPC_TIMEOUT     = -1,
+    RPC_TIMEOUT_ERR = -1,
     RPC_SEQ_ERR     = -2,
     RPC_SERVICE_NOT_FOUND = -3,
     RPC_OTHER_ERR   = -4,
@@ -35,6 +35,7 @@ public:
                             google::protobuf::Closure* done);
 
 private:
+    static const int32_t RPC_TIMEOUT_MS = 5000;
     CTcpConnection* m_connection;
 };
 

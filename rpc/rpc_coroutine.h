@@ -14,9 +14,10 @@ typedef struct TRpcCall
 {
     const char*     recv_buf;
     int32_t         recv_len;
+    bool            is_timeout;
     
     // default construct, rpc_co must init NULL
-    TRpcCall() : recv_buf(NULL), recv_len(0) {}
+    TRpcCall() : recv_buf(NULL), recv_len(0), is_timeout(false) {}
 } TRpcCall;
 
 struct stCoRoutine_t;

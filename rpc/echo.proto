@@ -18,3 +18,8 @@ service CEchoService
 {
     rpc Echoxxx(EchoRequest) returns (EchoResponse);
 };
+
+service CNotExistService
+{
+    rpc NotExist(EchoRequest) returns (EchoResponse);
+}

@@ -23,7 +23,7 @@ public:
 static int32_t s_loop_times = 0;
 static std::vector<CRpcCoroutine*> s_no_gc_coroutine_vec;
 static std::vector<stCoRoutine_t*> s_gc_coroutine_vec;
-#define RPC_MAX_LOOP    5
+#define RPC_MAX_LOOP    1
 
 
 void* GcRoutine(void* arg)
@@ -90,6 +90,7 @@ void CTestRpcNet::TestNoGcRoutine(void)
     }   
 }
 
+// only one rpc in one coroutine, not allow many rpc call in one coroutine
 void* Routine(void* arg)
 {
     // register rpc channel to stub
@@ -102,8 +103,39 @@ void* Routine(void* arg)
     EchoResponse response;
     request.set_message("hello sakula");
     request.set_sid(6666);
+
+    // normal rpc call
     CEchoService_Stub stub(&rpc_channel);
     stub.Echoxxx(&rpc_cntl, &request, &response, NULL);    
+
+    // check if rpc call successful, if rpc is failed, response is undefined, can not use !!!
+    if (!rpc_cntl.Failed())
+    {        
+        printf("response, message: %s, rid:%d\n", response.message().c_str(), response.rid());        
+    }
+
+    if (++s_loop_times >= RPC_MAX_LOOP)
+    {
+        printf("Client RPC loop = %d, end time: %s\n", RPC_MAX_LOOP, CUtils::GetCurrentTime());
+    }
+}
+
+void* NotExistRpcRoutine(void* arg)
+{
+    // register rpc channel to stub
+    // when client do rpc call, will process rcp channel callmethod actually
+    CTcpConnection* conn_ptr = (CTcpConnection*)arg;
+
+    CRpcCntl rpc_cntl;
+    CRpcChannel rpc_channel(conn_ptr);
+    EchoRequest request;
+    EchoResponse response;
+    request.set_message("hello sakula");
+    request.set_sid(6666);
+
+    // not exist rpc call
+    CNotExistService_Stub no_stub(&rpc_channel);
+    no_stub.NotExist(&rpc_cntl, &request, &response, NULL);
 
     // check if rpc call successful, if rpc is failed, response is undefined, can not use !!!
     if (!rpc_cntl.Failed())
@@ -124,9 +156,9 @@ void CTestRpcNet::TestCoroutine(CTcpConnection* conn_ptr)
     {
         // build new coroutine, rpc call will execute in coroutine
         // rpc call will send, then yield, wait for recv, wake up by other coroutine
-        CRpcCoroutine* coroutine = new CRpcCoroutine(Routine, conn_ptr);
-        printf("malloc coroutine = %p, size = %d\n", coroutine, (int32_t)sizeof(*coroutine));
-        conn_ptr->RegisterCoroutine(coroutine);
+        CRpcCoroutine* coroutine = new CRpcCoroutine(NotExistRpcRoutine, conn_ptr);
+        //printf("malloc coroutine = %p, size = %d\n", coroutine, (int32_t)sizeof(*coroutine));
+        conn_ptr->RegisterCoroutine(coroutine->GetId(), coroutine);
         coroutine->Resume();
     }    
 }
