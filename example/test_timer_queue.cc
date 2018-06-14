@@ -34,7 +34,8 @@ void CTestTimer::TestTimer(void)
 
     CEventLoop loop;
     printf("test start time: %s\n", CUtils::GetCurrentTime());
-    //loop.RunAfter(2500, std::bind(OnceFunc));
-    s_cancel_timer_seq = loop.RunEvery(500, std::bind(RepeatFunc, &loop));
+    loop.RunAfter(1200, std::bind(OnceFunc));
+    loop.RunAfter(1200, std::bind(OnceFunc));
+    //s_cancel_timer_seq = loop.RunEvery(500, std::bind(RepeatFunc, &loop));
     loop.Loop();
 }

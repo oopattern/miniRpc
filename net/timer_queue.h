@@ -89,7 +89,8 @@ private:
     static int32_t  m_num_create;    
 };
 
-typedef std::map<int64_t, CTimer*> TimerList;
+// support the same expiration
+typedef std::multimap<int64_t, CTimer*> TimerList;
 
 class CTimerQueue
 {
