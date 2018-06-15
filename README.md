@@ -5,7 +5,7 @@ try some way for easy rpc
 
 ## Installation
  - **Compiling-Environment:**   
- Linux  
+ Linux2.6+  
  GCC-4.8+, support c++11  
  cmake  
  protobuf  
