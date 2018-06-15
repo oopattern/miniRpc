@@ -5,14 +5,14 @@ try some way for easy rpc
 
 ## Installation
  Compiling-Environment: 
- Linux 
- GCC-4.8+, support c++11 
- cmake 
- protobuf 
-
- $ cd /path/to/miniRpc
- $ cmake .
- $ make
+ Linux  
+ GCC-4.8+, support c++11  
+ cmake  
+ protobuf  
+ 
+ $ cd /path/to/miniRpc  
+ $ cmake .  
+ $ make   
 
 ## Features
 
@@ -21,4 +21,3 @@ try some way for easy rpc
 ## Examples
 
 Frame of phxrpc(Tencent) project, probably not correct, only for reference.
-![xxx](https://github.com/oopattern/miniRpc/blob/master/screenshots/phxrpc.png)
