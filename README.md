@@ -24,9 +24,9 @@ Attempt to realize easy RPC
  - **Framework:**  
  ![](https://github.com/oopattern/miniRpc/blob/master/screenshots/RPC.png)  
 
-    RpcCall/Process: RPC business logic, refer to "rpc/rpc_channel.*, rpc/rpc_service.*"      
-    Protocol: custom packet with protobuf, refer to "net/packet_codec.*"      
-    Network : async epoll event implement, refer to "net/tcp_*, net/channel.*, net/acceptor.*"      
+   **RpcCall/Process:** RPC business logic, refer to "rpc/rpc_channel.*, rpc/rpc_service.*"      
+   **Protocol:** custom packet with protobuf, refer to "net/packet_codec.*"      
+   **Network:** async epoll event implement, refer to "net/tcp_*, net/channel.*, net/acceptor.*"      
  
  - **Catalog:**  
     - base: thread operation and other common interface  
