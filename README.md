@@ -10,6 +10,7 @@ try some way for easy rpc
  cmake  
  protobuf  
  
+ - **Build:** 
  $ cd /path/to/miniRpc  
  $ cmake .  
  $ make   
