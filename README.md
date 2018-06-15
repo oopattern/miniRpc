@@ -24,17 +24,17 @@ Attempt to realize easy RPC
  - **Framework:**  
  ![](https://github.com/oopattern/miniRpc/blob/master/screenshots/RPC.png)  
 
-    RpcCall/Process: RPC business logic, refer to "rpc/rpc_channel.*, rpc/rpc_service.*" 
-    Protocol: custom packet with protobuf, refer to "net/packet_codec.*"
+    RpcCall/Process: RPC business logic, refer to "rpc/rpc_channel.*, rpc/rpc_service.*"      
+    Protocol: custom packet with protobuf, refer to "net/packet_codec.*"      
     Network : async epoll event implement, refer to "net/tcp_*, net/channel.*, net/acceptor.*"      
  
  - **Catalog:**  
-    + base: thread operation and other common interface  
-    + net : async epoll event framework, support mutli thread  
-    + rpc : protobuf and coroutine rpc operation 
-    + shm : mutli-process/thread lock free message queue and hash table of shm operation
-    + examples : easy example of client/server demo
-    + third_party: google btree library and Tencent libco library      
+    - base: thread operation and other common interface  
+    - net : async epoll event framework, support mutli thread  
+    - rpc : protobuf and coroutine rpc operation 
+    - shm : mutli-process/thread lock free message queue and hash table of shm operation
+    - examples : easy example of client/server demo
+    - third_party: google btree library and Tencent libco library      
     
  
  
