@@ -18,6 +18,7 @@ Attempt to realize easy RPC
 ## Features
  - **MutliThread:** one accept-thread, mutli io-thread  
  - **Coroutine:** on client mode, use coroutine fo realize RPC sync  
+ - **Protobuf:** use protobuf to register RPC service, and define protocol  
 
 ## Performance
 
