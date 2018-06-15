@@ -1,5 +1,5 @@
 # miniRpc
-try some way for easy rpc
+Attempt to realize easy RPC
 
 ## BackGround
 
@@ -16,8 +16,8 @@ try some way for easy rpc
  $ make   
 
 ## Features
- - **MutliThread:** one accept-thread, mutli io-thread.  
- - **Coroutine:** on client mode, use coroutine fo realize RPC sync.   
+ - **MutliThread:** one accept-thread, mutli io-thread  
+ - **Coroutine:** on client mode, use coroutine fo realize RPC sync  
 
 ## Performance
 
