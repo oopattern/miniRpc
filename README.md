@@ -5,7 +5,7 @@ try some way for easy rpc
 
 ## Installation
  - **Compiling-Environment:**   
- Linux2.6+  
+ Linux-2.6+  
  GCC-4.8+, support c++11  
  cmake  
  protobuf  
@@ -16,6 +16,8 @@ try some way for easy rpc
  $ make   
 
 ## Features
+ - **MutliThread:** one accept-thread, mutli io-thread.  
+ - **Coroutine:** on client mode, use coroutine fo realize RPC sync.   
 
 ## Performance
 
