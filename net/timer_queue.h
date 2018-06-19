@@ -7,13 +7,6 @@ class CChannel;
 class CEventLoop;
 
 
-typedef enum 
-{
-    kTimerFuncStop = 0,
-    kTimerFuncRunning = 1,
-    kTimerFuncDelete = 2,
-} TimerFuncStat;
-
 class CTimer
 {
 public:
@@ -23,7 +16,6 @@ public:
           m_callback(cb),
           m_repeat(m_interval > 0)
     {
-        m_func_stat = kTimerFuncStop;
         m_sequence = ++m_num_create;   
     }
     ~CTimer() 
@@ -51,30 +43,11 @@ public:
         return m_repeat;
     }
 
-    TimerFuncStat GetFuncStatus(void) const
-    {
-        return m_func_stat;
-    }
-
-    void SetFuncStatus(TimerFuncStat stat)
-    {
-        m_func_stat = stat;
-    }
-
     void Run(void)
     {        
-        // exclude kTimerFuncDelete stat
-        if (kTimerFuncDelete != GetFuncStatus())
+        if (m_callback)
         {
-            SetFuncStatus(kTimerFuncRunning);
-        }
-        
-        m_callback();
-
-        // exclude kTimerFuncDelete stat
-        if (kTimerFuncDelete != GetFuncStatus())
-        {
-            SetFuncStatus(kTimerFuncStop);
+            m_callback();        
         }
     }
 
@@ -83,14 +56,16 @@ private:
     int32_t         m_interval;
     TimerCallback   m_callback;
     bool            m_repeat;
-    TimerFuncStat   m_func_stat;
     int32_t         m_sequence;
     
     static int32_t  m_num_create;    
 };
 
 // support the same expiration
+// key: expiration, val: timer
 typedef std::multimap<int64_t, CTimer*> TimerList;
+// key: timer sequence, val: timer
+typedef std::map<int32_t, CTimer*>      TimerSeq; 
 
 class CTimerQueue
 {
@@ -114,5 +89,7 @@ private:
     int32_t     m_timer_fd;
     CChannel*   m_timer_channel;
     TimerList   m_timer_list;
+    TimerSeq    m_cancel_timer;
+    bool        m_running_callback;
 };
 

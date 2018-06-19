@@ -60,8 +60,8 @@ int main(void)
     //CTestNet::TestTcpServer();
     //CTestNet::TestTcpClient();
     //CTestRpcNet::TestRpcServer();
-    CTestRpcNet::TestRpcClient();
-    //CTestTimer::TestTimer();
+    //CTestRpcNet::TestRpcClient();
+    CTestTimer::TestTimer();
     return 0;
 }
 

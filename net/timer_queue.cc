@@ -12,13 +12,16 @@ int32_t CTimer::m_num_create = 0;
 CTimerQueue::CTimerQueue(CEventLoop* loop)
     : m_loop(loop),
       m_timer_fd(CTimerQueue::CreateTimerFd()),
-      m_timer_channel(new CChannel(loop, m_timer_fd))
+      m_timer_channel(new CChannel(loop, m_timer_fd)),
+      m_running_callback(false)
 {
     if (m_timer_fd < 0)
     {
         printf("Timer queue init timerfd error\n");
         ::exit(-1);
     }
+    m_timer_list.clear();
+    m_cancel_timer.clear();
     m_timer_channel->SetReadCallback(std::bind(&CTimerQueue::HandleRead, this));
     m_timer_channel->EnableRead();
 }
@@ -34,7 +37,7 @@ CTimerQueue::~CTimerQueue()
     {
         delete it->second;
     }
-    m_timer_list.clear();
+    m_timer_list.clear();    
 }
 
 int32_t CTimerQueue::AddTimer(int64_t when_ms, int32_t interval_ms, const TimerCallback& cb)
@@ -73,7 +76,7 @@ int32_t CTimerQueue::CancelTimer(int32_t timer_seq)
         {
             // if func is running, can not delete at once,
             // because m_timer_list can not erase iterator twice
-            if (kTimerFuncRunning != timer->GetFuncStatus())
+            if (false == m_running_callback)
             {
                 printf("time queue cancel timer seq = %d\n", timer_seq);
                 delete timer;
@@ -82,7 +85,7 @@ int32_t CTimerQueue::CancelTimer(int32_t timer_seq)
             }
 
             printf("timer func is running, need to delete later\n");
-            timer->SetFuncStatus(kTimerFuncDelete);
+            m_cancel_timer.insert(std::make_pair(timer_seq, timer));
             return OK;
         }
     }
@@ -92,19 +95,21 @@ int32_t CTimerQueue::CancelTimer(int32_t timer_seq)
 
 void CTimerQueue::HandleRead(void)
 {
-    int64_t expiration = 0;
     int64_t now_ms = CUtils::NowMsec();
     ReadTimerFd(m_timer_fd);
 
-    TimerList repeat_timer;
-    repeat_timer.clear();
+    TimerSeq active_timer;
+    active_timer.clear();
 
+    // run timeout callback
+    m_running_callback = true;
     TimerList::iterator it = m_timer_list.begin();
     while (it != m_timer_list.end())
     {
         // key: expiration, val: ctimer*
-        expiration = it->first;
+        int64_t expiration = it->first;
         CTimer* timer = it->second;
+        int32_t seq = timer->Sequence();
         
         // now time not reach expiration timeout
         if (now_ms < expiration)
@@ -112,33 +117,34 @@ void CTimerQueue::HandleRead(void)
             break;
         }
 
-        // run timeout callback
+        active_timer.insert(std::make_pair(seq, timer));
         timer->Run();
         it = m_timer_list.erase(it);
+    }
+    m_running_callback = false;
 
-        // check if need to repeat
-        if (!timer->Repeat() || (kTimerFuncDelete == timer->GetFuncStatus()))
+    // delete handled timer
+    TimerSeq::iterator run_it;
+    for (run_it = active_timer.begin(); run_it != active_timer.end(); ++run_it)
+    {
+        int32_t seq = run_it->first;
+        CTimer* timer = run_it->second;
+        if (!timer->Repeat() || (m_cancel_timer.find(seq) != m_cancel_timer.end()))
         {
             delete timer;
         }
         else
         {
             timer->Restart(now_ms);
-            repeat_timer.insert(std::make_pair(timer->Expiration(), timer));
+            m_timer_list.insert(std::make_pair(timer->Expiration(), timer));
         }
     }
-
-    // resort timer queue
-    TimerList::iterator re_it;
-    for (re_it = repeat_timer.begin(); re_it != repeat_timer.end(); ++re_it)
-    {
-        m_timer_list.insert(*re_it);        
-    }
+    m_cancel_timer.clear();
 
     // reset next timer
     if (!m_timer_list.empty())
     {
-        expiration = m_timer_list.begin()->first;
+        int64_t expiration = m_timer_list.begin()->first;
         ResetTimerFd(m_timer_fd, expiration);
     }
 }
