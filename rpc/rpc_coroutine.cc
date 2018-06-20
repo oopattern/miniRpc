@@ -100,6 +100,7 @@ void CRpcCoroutine::Release(void)
     m_status = kCoStop;
     m_rpc_call.recv_buf = NULL;
     m_rpc_call.recv_len = 0;
+    m_rpc_call.is_timeout = false;
 }
 
 CRpcCoroutine* CRpcCoroutine::GetOwner(void)

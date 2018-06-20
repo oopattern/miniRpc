@@ -12,7 +12,7 @@ int32_t CTimer::m_num_create = 0;
 CTimerQueue::CTimerQueue(CEventLoop* loop)
     : m_loop(loop),
       m_timer_fd(CTimerQueue::CreateTimerFd()),
-      m_timer_channel(new CChannel(loop, m_timer_fd)),
+      m_timer_channel(new CChannel(m_loop, m_timer_fd)),
       m_running_callback(false)
 {
     if (m_timer_fd < 0)
@@ -36,8 +36,10 @@ CTimerQueue::~CTimerQueue()
     for (it = m_timer_list.begin(); it != m_timer_list.end(); ++it)
     {
         delete it->second;
-    }
+    }    
     m_timer_list.clear();    
+    // m_cancel_timer point to the same timer in m_timer_list
+    // so should not delete timer in m_cancel_timer
 }
 
 int32_t CTimerQueue::AddTimer(int64_t when_ms, int32_t interval_ms, const TimerCallback& cb)

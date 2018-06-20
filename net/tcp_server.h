@@ -20,7 +20,6 @@ public:
     ~CTcpServer();
 
     void Start(void);    
-    void NewConnection(int32_t connfd);
     void SetThreadNum(int32_t num_threads);
     void SetMessageCallback(const MessageCallback& cb) { m_message_callback = cb; }
 
@@ -31,6 +30,7 @@ public:
     int32_t FindService(const std::string& full_name, TMethodProperty& method_property);
 
 private:
+    void NewConnection(int32_t connfd);
     CEventLoop* GetNextLoop(void);
     void IoLoopFunc(int32_t loop_idx);   
 

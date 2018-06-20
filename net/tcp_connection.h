@@ -48,7 +48,6 @@ private:
     CBuffer*        m_rbuf; // for tcp connection read event
     CBuffer*        m_wbuf; // for tcp connection write event
 
-    //RpcCallMap      m_rpc_map; // for coroutine of client connection    
     CoroutineMap    m_coroutine_map;
 };
 

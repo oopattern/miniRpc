@@ -22,7 +22,11 @@ CTcpClient::CTcpClient(CEventLoop* loop)
 
 CTcpClient::~CTcpClient()
 {
-    ::close(m_connfd);
+    if (m_connfd > 0)
+    {
+        ::close(m_connfd);
+        m_connfd = -1;
+    }
     //delete m_channel;
 }
 
@@ -91,11 +95,6 @@ void CTcpClient::NewConnection(void)
     {
         m_connection_callback(m_connection);
     }
-
-#if 0
-    const char* hint = "new connection, hello oopattern\n";
-    m_connection->Send(hint, ::strlen(hint));
-#endif    
 }
 
 

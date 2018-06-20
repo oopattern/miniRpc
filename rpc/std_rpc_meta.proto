@@ -18,7 +18,7 @@ message RpcRequestMeta
 
 message RpcResponseMeta
 {
-    optional int32 error_code = 1;
+    optional int32 error_code   = 1;
     required int32 coroutine_id = 2;
 };
 

@@ -20,7 +20,7 @@
 
 CTcpConnection::CTcpConnection(CEventLoop* loop, int32_t connfd, CTcpServer* server)
     : m_loop(loop),
-      m_channel(new CChannel(loop, connfd)),
+      m_channel(new CChannel(m_loop, connfd)),
       m_server(server),
       m_rbuf(new CBuffer),
       m_wbuf(new CBuffer)

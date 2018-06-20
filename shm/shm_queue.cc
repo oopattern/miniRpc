@@ -2,6 +2,7 @@
 #include <assert.h> // assert
 #include <string.h> // memcpy
 #include "../base/thread.h"
+#include "shm_alloc.h"
 #include "shm_queue.h"
 
 

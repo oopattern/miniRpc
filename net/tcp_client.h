@@ -16,9 +16,7 @@ public:
     ~CTcpClient();
 
     int32_t Connect(TEndPoint& server_addr);
-
     void SetConnectionCallback(const ConnectionCallback& cb) { m_connection_callback = cb; }
-
     void SetMessageCallback(const MessageCallback& cb) { m_message_callback = cb; }
 
 private:

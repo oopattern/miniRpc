@@ -29,6 +29,7 @@ typedef struct _tValType
     int32_t uid;
     char    name[10]; // shm can not use string or pointer! delete will core
     money_t money;
+    char    reserve[32]; // reserve node data, for later use
 } ValType;
 
 // operate shm

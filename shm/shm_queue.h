@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#include "shm_alloc.h"
+#include "../base/singleton.h"
 
 // define global
 #define g_shmQueue      Singleton<CShmQueue>::Instance()

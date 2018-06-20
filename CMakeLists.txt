@@ -47,7 +47,6 @@ add_executable( demo
                 shm/shm_alloc.cc
                 shm/shm_hash.cc
                 shm/shm_queue.cc
-                base/block_queue.cc
                 base/sort_merge.cc
                 base/thread.cc
                 base/public.cc )

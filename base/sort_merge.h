@@ -80,10 +80,10 @@ private:
 
     // code not finish...
     // bucket sort or general sort operation
-    int         m_splitNum;     // small tmp file, split by huge file
-    int         m_mergeTimes;   // merge times, should use atomic var
-    CBlockQueue m_fileQueue;    // sorted tmp file, from small tmp file
-    CBlockQueue m_mergeQueue;   // merge file, from sort tmp file
+    int                      m_splitNum;     // small tmp file, split by huge file
+    int                      m_mergeTimes;   // merge times, should use atomic var
+    CBlockQueue<std::string> m_fileQueue;    // sorted tmp file, from small tmp file
+    CBlockQueue<std::string> m_mergeQueue;   // merge file, from sort tmp file
     std::map<int,bool> m_bMergeFin; // pthread merge status
     
     // bitmap operation

@@ -31,12 +31,12 @@ void TestSortMerge(void)
     std::string line;
     //sort.GeneralSplit();
     //sort.GeneralMerge();
-    //sort.BucketSort();
+    sort.BucketSort();
     //sort.BitmapSort();
     //sort.BitmapQuery(37, line);
     //sort.BtreeSort();
     //sort.BtreeQuery(37, line);
-    sort.SearchCompare();
+    //sort.SearchCompare();
 }
 
 void TestShm(void)
@@ -61,7 +61,8 @@ int main(void)
     //CTestNet::TestTcpClient();
     //CTestRpcNet::TestRpcServer();
     //CTestRpcNet::TestRpcClient();
-    CTestTimer::TestTimer();
+    //CTestTimer::TestTimer();
+    TestSortMerge();
     return 0;
 }
 

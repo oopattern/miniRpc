@@ -57,7 +57,7 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
     TRpcCall rpc_call;
     rpc_co->GetRpcCall(rpc_call);
 
-    // check out timeout first
+    // first, check out timeout
     if (true == rpc_call.is_timeout)
     {
         rpc_cntl->SetFailed(RPC_TIMEOUT_ERR);
@@ -65,7 +65,7 @@ void CRpcChannel::CallMethod(const google::protobuf::MethodDescriptor* method,
         return;
     }
 
-    // next check out other thing
+    // second, check out other thing
     if ((NULL == rpc_call.recv_buf) || (0 >= rpc_call.recv_len))
     {
         rpc_cntl->SetFailed(RPC_OTHER_ERR);
