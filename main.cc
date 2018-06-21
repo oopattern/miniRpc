@@ -61,8 +61,8 @@ int main(void)
     //CTestNet::TestTcpClient();
     //CTestRpcNet::TestRpcServer();
     //CTestRpcNet::TestRpcClient();
-    //CTestTimer::TestTimer();
-    TestSortMerge();
+    CTestTimer::TestTimer();
+    //TestSortMerge();
     return 0;
 }
 

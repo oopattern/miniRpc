@@ -16,7 +16,13 @@ public:
           m_callback(cb),
           m_repeat(m_interval > 0)
     {
-        m_sequence = ++m_num_create;   
+        // m_num_create is atomic, pay attention to difference of fetch_add and add_fetch
+        // fetch_add: return old val before add
+        // add_fetch: return new val after add
+        // ++m_num_create == m_num_create.fetch_add(1) + 1
+        // though m_num_create.fetch_add(1) + 1 is not atomic, but it will generate unique id
+        m_sequence = m_num_create.fetch_add(1) + 1;
+        //m_sequence = ++m_num_create;   
     }
     ~CTimer() 
     {
@@ -52,20 +58,14 @@ public:
     }
 
 private:    
-    int64_t         m_expiration;
-    int32_t         m_interval;
-    TimerCallback   m_callback;
-    bool            m_repeat;
-    int32_t         m_sequence;
+    int64_t             m_expiration;
+    int32_t             m_interval;
+    TimerCallback       m_callback;
+    bool                m_repeat;
+    int32_t             m_sequence;
     
-    static int32_t  m_num_create;    
+    static AtomicInt    m_num_create;
 };
-
-// support the same expiration
-// key: expiration, val: timer
-typedef std::multimap<int64_t, CTimer*> TimerList;
-// key: timer sequence, val: timer
-typedef std::map<int32_t, CTimer*>      TimerSeq; 
 
 class CTimerQueue
 {

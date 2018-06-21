@@ -7,7 +7,8 @@
 #include "timer_queue.h"
 
 
-int32_t CTimer::m_num_create = 0;
+// since atomic no copy construct
+AtomicInt CTimer::m_num_create(0);
 
 CTimerQueue::CTimerQueue(CEventLoop* loop)
     : m_loop(loop),

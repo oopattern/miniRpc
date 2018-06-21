@@ -6,7 +6,7 @@
 #include "rpc_coroutine.h"
 
 
-int32_t CRpcCoroutine::m_inc_coid = 0;
+AtomicInt CRpcCoroutine::m_inc_coid(0);
 
 CRpcCoroutine::CRpcCoroutine(void* (*routine)(void*), void* arg)
 {
@@ -49,13 +49,15 @@ int32_t CRpcCoroutine::GetId(void) const
 
 int32_t CRpcCoroutine::GenerateCoroutineId(void)
 {
-    ++m_inc_coid;
-    if (m_inc_coid >= INT_MAX)
+    int32_t expect_val = INT_MAX;
+    int32_t desire_val = 1;
+    if (true == m_inc_coid.compare_exchange_strong(expect_val, desire_val))
     {
-        m_inc_coid = 1;
+        assert(1 == m_inc_coid.load());
+        return 1;
     }
 
-    return m_inc_coid;
+    return m_inc_coid.fetch_add(1) + 1;
 }
 
 void CRpcCoroutine::Yield(void)

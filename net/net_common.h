@@ -5,6 +5,7 @@
 #include <map>
 #include <vector>
 #include <string>
+#include <atomic>
 #include <functional>
 #include <google/protobuf/service.h>
 
@@ -28,6 +29,7 @@ class CTcpConnection;
 class CRpcCoroutine;
 class CThread;
 class CEventLoop;
+class CTimer;
 
 
 typedef enum 
@@ -49,10 +51,17 @@ typedef struct _tMethodProperty
     const google::protobuf::MethodDescriptor* method;
 } TMethodProperty;
 
-typedef std::vector<CThread*>    ThreadList;
-typedef std::vector<CEventLoop*> LoopList;
-typedef std::map<int, CChannel*> ChannelMap; // key: channel fd, val: channel point
-typedef std::vector<CChannel*>   ChannelList; 
+// support the same expiration
+// key: expiration, val: timer
+typedef std::multimap<int64_t, CTimer*> TimerList;
+// key: timer sequence(atomic), val: timer
+typedef std::map<int32_t, CTimer*>      TimerSeq; 
+typedef std::atomic<int>                AtomicInt;
+
+typedef std::vector<CThread*>           ThreadList;
+typedef std::vector<CEventLoop*>        LoopList;
+typedef std::map<int32_t, CChannel*>    ChannelMap; // key: channel fd, val: channel point
+typedef std::vector<CChannel*>          ChannelList; 
 typedef std::map<std::string, CTcpConnection*> ConnectionMap; // key: connection name, val: connection point
 typedef std::map<int32_t, CRpcCoroutine*> CoroutineMap; // key: co_id, val: coroutine point
 

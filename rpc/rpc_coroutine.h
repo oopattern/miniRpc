@@ -2,6 +2,9 @@
 #define __RPC_COROUTINE_H
 
 #include <stdio.h>
+#include <stdint.h>
+#include "../net/net_common.h"
+
 
 typedef enum
 {
@@ -43,13 +46,13 @@ public:
     static int32_t GenerateCoroutineId(void);
 
 private:    
-    int32_t         m_co_id;    // coroutine id
-    stCoRoutine_t*  m_coroutine;// coroutine
-    ECoStatus       m_status;   // coroutine status
-    TRpcCall        m_rpc_call; // for rpc call back
+    int32_t             m_co_id;    // coroutine id
+    stCoRoutine_t*      m_coroutine;// coroutine
+    ECoStatus           m_status;   // coroutine status
+    TRpcCall            m_rpc_call; // for rpc call back
 
     // TODO: mutli pthread, since Concurrency, m_inc_coid should use atomic 
-    static int32_t  m_inc_coid; // generate coroutine id by increase
+    static AtomicInt    m_inc_coid; // generate coroutine id by increase
 };
 
 #endif
