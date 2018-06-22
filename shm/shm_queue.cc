@@ -117,8 +117,11 @@ int32_t CShmQueue::CreateShm(uint32_t size)
     }
     else 
     {
-        printf("create shm queue alloc type error\n");
-        return SHM_ERROR;
+        m_ptr = CShmAlloc::SystemVCreate(SHM_QUEUE_KEY, size);
+        if (NULL == m_ptr)
+        {
+            return SHM_ERROR;
+        }
     }
 
     // init shm head once
@@ -166,8 +169,11 @@ int32_t CShmQueue::AttachShm(void)
     }
     else
     {
-        printf("attach shm queue alloc type error\n");
-        return SHM_ERROR;
+        m_ptr = CShmAlloc::SystemVAttach(SHM_QUEUE_KEY);
+        if (NULL == m_ptr)
+        {
+            return SHM_ERROR;
+        }
     }
 
     // mutex lock init once

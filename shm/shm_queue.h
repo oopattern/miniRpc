@@ -76,6 +76,7 @@ private:
 
 private:
     // max queue msg size: 256 bytes
+    static const int32_t  SHM_QUEUE_KEY = 0x20180622;
     static const uint32_t SHM_QUEUE_MSG_MAX_SIZE = 256; 
     static const uint32_t SHM_QUEUE_BUF_SIZE = 1 * 1024 * 1024; // 1Mb
     static const uint32_t SHM_QUEUE_TOTAL_SIZE = SHM_QUEUE_BUF_SIZE + sizeof(TShmHead);

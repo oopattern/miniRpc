@@ -108,7 +108,7 @@ private:
     ~CShmHash();
 
 private:
-    static const int32_t SHM_KEY = 0x20180325; // unique shm key
+    static const int32_t SHM_HASH_KEY = 0x20180325; // unique shm key
     static const int32_t SHM_SIZE = 1 * 1024 * 1024; // max shm size, 1Mb
     static const uint64_t HASH_BUCKET_MAX_SIZE = 10; // max prime count
     static const uint64_t HASH_INIT_PRIME = 1000; // produce prime under 1000

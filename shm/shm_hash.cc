@@ -106,7 +106,7 @@ int32_t CShmHash::CreateShm(uint32_t size)
     // SystemV mode
     else
     {
-        m_ptr = CShmAlloc::SystemVCreate(SHM_KEY, size);
+        m_ptr = CShmAlloc::SystemVCreate(SHM_HASH_KEY, size);
     }
 
     if (NULL == m_ptr)
@@ -140,7 +140,7 @@ int32_t CShmHash::AttachShm(void)
     }
     else
     {
-        m_ptr = CShmAlloc::SystemVAttach(SHM_KEY);
+        m_ptr = CShmAlloc::SystemVAttach(SHM_HASH_KEY);
     }
 
     if (NULL == m_ptr)
