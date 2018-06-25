@@ -19,7 +19,7 @@ static const uint8_t g_lockType = LOCK_ATOMIC;
 
 static const int32_t ATOMIC_COUNT = 2;
 static const int64_t ATOMIC_TRY_LIMIT = 200000000L;
-static const char*   MMAP_HASH = "POSIX_MMAP_HASH";
+
 
 // hash function seed
 static uint32_t dict_hash_function_seed = 5381;
@@ -88,6 +88,18 @@ int32_t CShmHash::InitShm(uint8_t allocType, uint8_t lockType, bool bCreat, uint
         return AttachShm();
     }
     return CreateShm(size);
+}
+
+int32_t CShmHash::UnlinkShm(void)
+{
+    if (POSIX == m_allocType)
+    {
+        return CShmAlloc::PosixUnlink(MMAP_HASH);
+    }
+    else
+    {
+        return CShmAlloc::SystemVUnlink(SHM_HASH_KEY);
+    }
 }
 
 int32_t CShmHash::CreateShm(uint32_t size)

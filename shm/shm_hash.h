@@ -19,6 +19,15 @@ typedef struct THashTbl {
 } THashTbl;
 #endif
 
+// for stack overflow:
+// The name parameter of shm_open(3) is an object name, not a file path! 
+// if use shm_open, arg name just a name, system will put it into /dev/shm/name
+// difference between shm_open and open for shm:
+// when system restart, /dev/shm/name will delete, but /path/to/name file will not delete if use open ?
+static const char*   MMAP_HASH = "POSIX_MMAP_HASH";
+// if use open for posix shm, arg name just a access file path, such as /tmp/POSIX_MMAP_HASH is available
+// static const char*   MMAP_HASH = "/home/lidi/POSIX_MMAP_HASH";
+
 // macro
 typedef int32_t        	KeyType;
 typedef long long       money_t;
@@ -61,6 +70,8 @@ public:
                      uint8_t lockType = LOCK_MUTEX,
                      bool bCreat = false,
                      uint32_t size = SHM_SIZE);
+    // delete shm, when all process detach shm, it will really delete shm memory region
+    int32_t UnlinkShm(void);
 
     // uid: key
     int32_t ModifyShm(int32_t uid, int32_t chgVal);

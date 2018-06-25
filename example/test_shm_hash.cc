@@ -25,7 +25,16 @@ public:
     static void TestShmMutex(int threadNum, long long times);
     static void TestShmCapacity(void);
     static void TestReadShmTPS(void);
+    static void TestShmUnlink(void);
 };
+
+
+void CTestHash::TestShmUnlink(void)
+{
+    // first attach shm
+    g_pShmHash->InitShm(POSIX, LOCK_ATOMIC, false); 
+    g_pShmHash->UnlinkShm();
+}
 
 // check out if pthread coredump, will other process/thread will be dead lock?
 void CTestHash::TestThreadAbort(void)

@@ -37,12 +37,17 @@ class CShmAlloc
 {
 public:
     // Posix mode
+    // difference between detach and unlink:
+    // detach just memory can not access any more, when process exit will detach shm
+    // unlink will delete shm memory, but it need all process detach shm before
     static void* PosixCreate(const char* name, uint32_t size);
     static void* PosixAttach(const char* name);
+    static int32_t PosixUnlink(const char* name);
 
     // SystemV mode
     static void* SystemVCreate(int32_t key, uint32_t size);
     static void* SystemVAttach(int32_t key);
+    static int32_t SystemVUnlink(int32_t key);
 
     // lock operation
     static int32_t InitLock(TMutex* mlock);

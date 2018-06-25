@@ -88,6 +88,9 @@ void CShmAlloc::UnlockShm(TMutex* mlock)
 void* CShmAlloc::PosixCreate(const char* name, uint32_t size)
 {
     // if shm exsist failed
+    // if use shm_open, name just a object name, system will put it into /dev/shm/name
+    // if use open, name just a access file path, such as /tmp/POSIX_MMAP_HASH, system will create file in /tmp dir
+    // int32_t id = ::open(name, O_RDWR | O_CREAT | O_EXCL, SHM_USER_MODE);
     int32_t id = ::shm_open(name, O_RDWR | O_CREAT | O_EXCL, SHM_USER_MODE);
     if (id < 0)
     {
@@ -151,6 +154,22 @@ void* CShmAlloc::PosixAttach(const char* name)
     return ptr;
 }
 
+// for man shm_unlink:
+// it removes a shared memory object name, 
+// and, once all processes  have unmapped the object, 
+// de-allocates and destroys the contents of the associated memory region.
+int32_t CShmAlloc::PosixUnlink(const char* name)
+{
+    if (0 > ::shm_unlink(name))
+    {
+        printf("shm_unlink error:%s\n", ::strerror(errno));
+        return SHM_ERROR;
+    }
+
+    printf("(posix)shm unlink: %s successful\n", name);
+    return SHM_OK;
+}
+
 // shm create, SystemV method
 void* CShmAlloc::SystemVCreate(int32_t key, uint32_t size)
 {
@@ -192,3 +211,24 @@ void* CShmAlloc::SystemVAttach(int32_t key)
 
     return ptr;
 }
+
+int32_t CShmAlloc::SystemVUnlink(int32_t key)
+{
+    int32_t id = ::shmget(key, 0, 0);
+    if (id < 0)
+    {
+        printf("shmget error:%s\n", ::strerror(errno));
+        return SHM_ERROR;
+    }
+
+    if (0 > ::shmctl(id, IPC_RMID, NULL))
+    {
+        printf("shmctl del error:%s\n", ::strerror(errno));
+        return SHM_ERROR;
+    }
+
+    printf("(SystemV)shm unlink: 0x%x successful\n", key);
+    return SHM_OK;
+}
+
+
