@@ -42,10 +42,10 @@ void TestSortMerge(void)
 void TestShm(void)
 {
     //CTestHash::TestShmCapacity();
-    //CTestHash::TestReadShmTPS();
+    CTestHash::TestReadShmTPS();
     //CTestHash::TestShmMutex(THREAD_NUM, QUERY_TIME);
     //CTestHash::TestThreadAbort();
-    CTestQueue::TestQueueCapacity();
+    //CTestQueue::TestQueueCapacity();
     //CTestQueue::TestQueuePush();
     //CTestQueue::TestQueuePop();
     //CTestQueue::TestQueueTPS();    
@@ -57,11 +57,12 @@ void TestShm(void)
 int main(void)
 {
     printf("hello world\n");    
+    TestShm();
     //CTestNet::TestTcpServer();
     //CTestNet::TestTcpClient();
     //CTestRpcNet::TestRpcServer();
     //CTestRpcNet::TestRpcClient();
-    CTestTimer::TestTimer();
+    //CTestTimer::TestTimer();
     //TestSortMerge();
     return 0;
 }

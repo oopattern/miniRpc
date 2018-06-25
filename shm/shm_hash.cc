@@ -15,7 +15,7 @@ static const uint8_t g_allocType = POSIX;
 // read-write concurrent sync way, default atomic, compare with mutex lock
 // for mutli-thread in a process, atomic may be the best way, TPS will be much higher
 // for mutli-process, mutex or atomic may be little difference
-static const uint8_t g_lockType = LOCK_MUTEX;
+static const uint8_t g_lockType = LOCK_ATOMIC;
 
 static const int32_t ATOMIC_COUNT = 2;
 static const int64_t ATOMIC_TRY_LIMIT = 200000000L;
