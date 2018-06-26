@@ -11,13 +11,6 @@
 
 using namespace std;
 
-// 1) try tcpdump command, check out what is happen:
-// # tcpdump -i lo tcp port 8888 -X -s 0 -v
-// 2) try protoc command, to generate *.pb.cc and *.pb.h files
-// # protoc --cpp_out=./ std_rpc_meta.proto, you can refer to CMakeLists.txt
-// 3) try mount command to share file between windows and ubuntu
-// # mount -t vboxsf Github /mnt/share
-
 
 void TestSortLargeFile(void)
 {
