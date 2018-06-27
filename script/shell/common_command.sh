@@ -46,7 +46,27 @@ GDB operation
 
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-Text operation(grep/awk/sed)
+Text operation(grep/awk/sed/more)
+
+1) calc word frequency, copy from https://github.com/haoel/leetcode/blob/master/shell/WordFrequency.sh
+    # cat words.txt | tr [:space:] "\n" | sed '/^$/d' | tr '[:upper:]' '[:lower:]'|sort|uniq -c|sort -nr | awk '{ print $2,$1}'
+2) calc TIME_WAIT count in netstat
+    # netstat -anop | awk '{a[$6]++} END {for (i in a) if(i ~ /TIME_WAIT/) print i, a[i]}'
+3) calc the same number in two file
+    # cat a.txt b.txt > merge.txt
+    # cat merge.txt | awk '{a[$1]++} END {for (i in a) if (a[i] > 1) print i, a[i]}'
+4) show page
+    # history | more, (print Enter for next line, print space for next page)
+    # more filename, (B for first page, Ctrl+b for previous page)
+
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -    
+String operation(tr/cut/sort/uniq)
+
+1) translate character
+    cat xxx.txt | tr [:space:] "\n"
+2) delete character
+    cat xxx.txt | tr -d ","
 
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 

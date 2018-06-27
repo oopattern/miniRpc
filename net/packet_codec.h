@@ -3,7 +3,7 @@
 #include "net_common.h"
 
 // define packet format
-// format: "(start_flag msg_len msg_body end_flag)"
+// format: "(start_flag head_len body_len head_msg body_msg end_flag)"
 #define PACKET_START            0x28
 #define PACKET_END              0x29
 #define PACKET_MSG_LEN_MIN      10   
