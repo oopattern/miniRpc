@@ -27,7 +27,6 @@ CTcpServer::~CTcpServer()
 void CTcpServer::IoLoopFunc(int32_t loop_idx)
 {
     assert(loop_idx < m_io_loop_vec.size());
-    assert(m_io_thread_vec.size() == m_io_loop_vec.size());
     CEventLoop* loop = m_io_loop_vec[loop_idx];
     loop->Loop();
 }
@@ -56,10 +55,12 @@ void CTcpServer::SetThreadNum(int32_t num_threads)
 {
     for (int32_t i = 0; i < num_threads; ++i)
     {
-        CThread* io_thread = new CThread(std::bind(&CTcpServer::IoLoopFunc, this, i));
+        // first, create loop, thread func will access loop, take care create loop first
         CEventLoop* io_loop = new CEventLoop();
-        m_io_thread_vec.push_back(io_thread);
         m_io_loop_vec.push_back(io_loop);
+        // second, create thread
+        CThread* io_thread = new CThread(std::bind(&CTcpServer::IoLoopFunc, this, i));
+        m_io_thread_vec.push_back(io_thread);
     }
 }
 
@@ -70,7 +71,8 @@ void CTcpServer::Start(void)
     ThreadList::iterator it;
     for (it = m_io_thread_vec.begin(); it != m_io_thread_vec.end(); ++it)
     {
-        (*it)->Start();
+        CThread* thread = *it;
+        thread->Start();
     }
 
     // base thread loop for listen

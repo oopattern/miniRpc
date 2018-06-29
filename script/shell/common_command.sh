@@ -58,6 +58,8 @@ Text operation(grep/awk/sed/more)
 4) show page
     # history | more, (print Enter for next line, print space for next page)
     # more filename, (B for first page, Ctrl+b for previous page)
+5) calc client connection count
+    # netstat -ntu | awk '{print $5}' | cut -d: -f1 | sort | uniq -c | sort -nr
 
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -    

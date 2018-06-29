@@ -72,25 +72,27 @@ void CAcceptor::HandleRead(void)
     ::bzero(&inaddr, sizeof(inaddr));    
     socklen_t addrlen = sizeof(inaddr);
 
-    int32_t connfd = ::accept(m_accept_socket, (struct sockaddr*)&inaddr, &addrlen);
-    if (connfd <= 0)
+    // try to access more connection, check errno for connection
+    // Fatal     error: EAGAIN/EINTR, just ignore this error
+    // Temporary error: ENFILE/ENOMEM, should terminate the process
+    while (1)
     {
-        if (EINTR == errno)
+        int32_t connfd = ::accept(m_accept_socket, (struct sockaddr*)&inaddr, &addrlen);
+        if (connfd <= 0)
         {
-            printf("accept connect error: %s\n", ::strerror(errno));
+            if ((EINTR != errno) && (EAGAIN != errno))
+            {
+                printf("[Fatal] connect error: %s\n", ::strerror(errno));
+            }
+            return;
         }
-        else if (EAGAIN == errno)
+        else
         {
-            printf("[Fatal] connect error: %s\n", ::strerror(errno));
+            if (m_new_connection_callback)
+            {
+                m_new_connection_callback(connfd);
+            }
         }
-        return;
-    }
-    else
-    {
-        if (m_new_connection_callback)
-        {
-            m_new_connection_callback(connfd);
-        }
-    }
+    }    
 }
 
