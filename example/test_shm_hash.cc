@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <vector>
+#include <sys/mman.h>
 #include "../base/public.h"
 #include "../base/thread.h"
 #include "../shm/shm_hash.h"
@@ -24,10 +25,33 @@ public:
     static void TestModifyShm(long long times);
     static void TestShmMutex(int threadNum, long long times);
     static void TestShmCapacity(void);
+    static void TestShmExpand(void);
     static void TestReadShmTPS(void);
     static void TestShmUnlink(void);
 };
 
+
+void CTestHash::TestShmExpand(void)
+{
+    const char* shm_name = "SHM_EXPAND";
+
+    void* ptr = CShmAlloc::PosixCreate(shm_name, 100);
+    if (NULL == ptr)
+    {
+        printf("shm posix create error\n");
+        return;
+    }
+
+    // before expand
+    char* data = (char*)ptr;
+    snprintf(data, 100, "hello sakula");
+    printf("before expand data: %s\n", data);
+
+    ::munmap(ptr, 100);
+    ptr = CShmAlloc::PosixExpand(shm_name, 1000);
+    data = (char*)ptr;
+    printf("after expand data: %s\n", data);
+}
 
 void CTestHash::TestShmUnlink(void)
 {

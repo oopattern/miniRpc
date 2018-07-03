@@ -154,6 +154,48 @@ void* CShmAlloc::PosixAttach(const char* name)
     return ptr;
 }
 
+// expand shm memory, not delete origin memory
+void* CShmAlloc::PosixExpand(const char* name, uint32_t expand_size)
+{
+    struct stat shmStat;
+    int32_t id = ::shm_open(name, O_RDWR, SHM_USER_MODE);
+    if (id < 0)
+    {
+        printf("shm_open error: %s\n", ::strerror(errno));
+        return NULL;
+    }
+
+    if (::fstat(id, &shmStat) < 0)
+    {
+        printf("fstat error: %s\n", ::strerror(errno));
+        return NULL;
+    }
+
+    uint32_t new_size = shmStat.st_size + expand_size;
+
+    // fix size
+    if (::ftruncate(id, new_size) < 0)
+    {
+        printf("ftruncate error:%s\n", strerror(errno));
+        return NULL;
+    }
+
+    void* ptr = ::mmap(NULL, new_size, PROT_READ | PROT_WRITE, MAP_SHARED, id, 0);
+    if (MAP_FAILED == ptr)
+    {
+        printf("mmap error:%s\n", strerror(errno));
+        return NULL;
+    }
+
+    printf("shm name: %s, after expand, new size: %d\n", name, new_size);
+
+    // above if fail, will not close fd
+    // code not finish...
+    ::close(id);
+
+    return ptr;
+}
+
 // for man shm_unlink:
 // it removes a shared memory object name, 
 // and, once all processes  have unmapped the object, 

@@ -34,7 +34,8 @@ void TestSortMerge(void)
 
 void TestShm(void)
 {
-    CTestHash::TestShmCapacity();
+    CTestHash::TestShmExpand();
+    //CTestHash::TestShmCapacity();
     //CTestHash::TestShmUnlink();
     //CTestHash::TestReadShmTPS();
     //CTestHash::TestShmMutex(THREAD_NUM, QUERY_TIME);

@@ -12,6 +12,8 @@ Network operation(tcpdump/netstat/lsof/nc...)
     # lsof -p 10454
     # lsof -i:port
     # lsof -Pan -i tcp |grep LISTEN | egrep "10050|6133"
+4) find process through port number
+    # lsof -p 336 -nP | grep TCP | awk '/ESTABLISHED/ {print $9}' | cut -d '-' -f1 | cut -d ':' -f2
 
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
@@ -59,7 +61,7 @@ Text operation(grep/awk/sed/more)
     # history | more, (print Enter for next line, print space for next page)
     # more filename, (B for first page, Ctrl+b for previous page)
 5) calc client connection count
-    # netstat -ntu | awk '{print $5}' | cut -d: -f1 | sort | uniq -c | sort -nr
+    # netstat -ntu | awk '{print $5}' | cut -d: -f1 | sort | uniq -c | sort -nr    
 
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -    

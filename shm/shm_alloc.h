@@ -42,6 +42,7 @@ public:
     // unlink will delete shm memory, but it need all process detach shm before
     static void* PosixCreate(const char* name, uint32_t size);
     static void* PosixAttach(const char* name);
+    static void* PosixExpand(const char* name, uint32_t expand_size);
     static int32_t PosixUnlink(const char* name);
 
     // SystemV mode
