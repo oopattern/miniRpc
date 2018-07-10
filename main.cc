@@ -52,8 +52,8 @@ void TestShm(void)
 int main(void)
 {
     printf("hello world\n");    
-    TestShm();
-    //CTestNet::TestTcpServer();
+    //TestShm();
+    CTestNet::TestTcpServer();
     //CTestNet::TestTcpClient();
     //CTestRpcNet::TestRpcServer();
     //CTestRpcNet::TestRpcClient();

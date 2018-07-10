@@ -16,7 +16,7 @@
 
 
 // use RPC
-#define USE_RPC 1
+#define USE_RPC 0
 
 CTcpConnection::CTcpConnection(CEventLoop* loop, int32_t connfd, CTcpServer* server)
     : m_loop(loop),
@@ -206,6 +206,9 @@ void CTcpConnection::RpcServerMsg(const char* recv_buf, int32_t recv_len)
 
 void CTcpConnection::HandleRead(void)
 {
+    //printf("try to not read buf, check what will happen?\n");
+    
+#if 1    
     //printf("need to read socket\n");
     char buf[1024*100];
     int32_t nread = 0;
@@ -222,6 +225,7 @@ void CTcpConnection::HandleRead(void)
     m_rbuf->Append(buf, nread);
     while (m_rbuf->Remain() > 0)
     {
+#if USE_RPC
         // check up complete packet
         int32_t packet_len = CPacketCodec::CheckPacket((char*)m_rbuf->Data(), m_rbuf->Remain());
         if (0 > packet_len)
@@ -237,7 +241,6 @@ void CTcpConnection::HandleRead(void)
             return;
         }
 
-#if USE_RPC
         // server recv message from connection
         if (m_server != NULL)
         {
@@ -249,6 +252,7 @@ void CTcpConnection::HandleRead(void)
             RpcClientMsg((char*)m_rbuf->Data(), packet_len);           
         }
 #else 
+        int32_t packet_len = nread;
         if (m_message_callback)
         {
             m_message_callback(this, (char*)m_rbuf->Data(), packet_len);
@@ -258,6 +262,7 @@ void CTcpConnection::HandleRead(void)
         // skip already read_len
         m_rbuf->Skip(packet_len);
     }
+#endif    
 }
 
 void CTcpConnection::HandleWrite(void)
@@ -286,6 +291,7 @@ void CTcpConnection::HandleWrite(void)
         {
             m_channel->DisableWrite();
         }
+        printf("handle write nwrite = %d\n", nwrite);
     }
     else
     {
@@ -328,6 +334,7 @@ void CTcpConnection::Send(const char* buf, int32_t len)
         {
             m_channel->EnableWrite();
         }
+        //printf("send remaining = %d\n", remaining);
     }
 }
 

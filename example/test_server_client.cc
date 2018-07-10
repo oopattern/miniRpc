@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "../net/tcp_client.h"
 #include "../net/tcp_server.h"
+#include "../net/tcp_connection.h"
 #include "../net/event_loop.h"
 
 
@@ -10,10 +11,25 @@ class CTestNet
 public:
     static void ServerMessage(CTcpConnection* conn_ptr, char* buf, int32_t len);
     static void ClientMessage(CTcpConnection* conn_ptr, char* buf, int32_t len);
+    static void TestFlowMessage(CTcpConnection* conn_ptr);
+    static void TestSendMessage(CTcpConnection* conn_ptr);
     static void TestTcpClient(void);
     static void TestTcpServer(void);
 };
 
+
+void CTestNet::TestSendMessage(CTcpConnection* conn_ptr)
+{
+    char send_buf[64*1024];
+    ::memset(send_buf, 'a', sizeof(send_buf));
+    conn_ptr->Send(send_buf, sizeof(send_buf));
+}
+
+void CTestNet::TestFlowMessage(CTcpConnection* conn_ptr)
+{
+    CEventLoop* loop = conn_ptr->GetLoop();
+    loop->RunEvery(2000, std::bind(&TestSendMessage, conn_ptr));
+}
 
 void CTestNet::ServerMessage(CTcpConnection* conn_ptr, char* buf, int32_t len)
 {
@@ -42,7 +58,8 @@ void CTestNet::TestTcpClient(void)
 
     CEventLoop loop;
     CTcpClient client(&loop);
-    client.SetMessageCallback(std::bind(&ClientMessage, _1, _2, _3));
+    client.SetConnectionCallback(std::bind(&TestFlowMessage, _1));
+    client.SetMessageCallback(std::bind(&ClientMessage, _1, _2, _3));    
     client.Connect(server_addr);
     loop.Loop();
 }
