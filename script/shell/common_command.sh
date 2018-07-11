@@ -14,6 +14,8 @@ Network operation(tcpdump/netstat/lsof/nc...)
     # lsof -Pan -i tcp |grep LISTEN | egrep "10050|6133"
 4) find process through port number
     # lsof -p 336 -nP | grep TCP | awk '/ESTABLISHED/ {print $9}' | cut -d '-' -f1 | cut -d ':' -f2
+5) apache bench test kps:
+    # ab -n 10000 -c 10  http://localhost:8888/
 
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 

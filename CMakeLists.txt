@@ -35,6 +35,7 @@ add_executable( demo
                 net/epoll.cc
                 net/event_loop.cc
                 net/tcp_connection.cc
+                net/http_server.cc
                 net/tcp_server.cc
                 net/tcp_client.cc
                 net/packet_codec.cc

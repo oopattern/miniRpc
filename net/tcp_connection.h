@@ -19,6 +19,7 @@ class CTcpConnection
 public:
     CTcpConnection(CEventLoop* loop, int32_t connfd, CTcpServer* server);
 
+    void ForceClose(void);
     void Send(const char* buf, int32_t len);
     void SetMessageCallback(const MessageCallback& cb) { m_message_callback = cb; }
     CEventLoop* GetLoop(void) const { return m_loop; }

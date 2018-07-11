@@ -208,7 +208,6 @@ void CTcpConnection::HandleRead(void)
 {
     //printf("try to not read buf, check what will happen?\n");
     
-#if 1    
     //printf("need to read socket\n");
     char buf[1024*100];
     int32_t nread = 0;
@@ -262,7 +261,6 @@ void CTcpConnection::HandleRead(void)
         // skip already read_len
         m_rbuf->Skip(packet_len);
     }
-#endif    
 }
 
 void CTcpConnection::HandleWrite(void)
@@ -291,7 +289,7 @@ void CTcpConnection::HandleWrite(void)
         {
             m_channel->DisableWrite();
         }
-        printf("handle write nwrite = %d\n", nwrite);
+        //printf("handle write nwrite = %d\n", nwrite);
     }
     else
     {
@@ -301,8 +299,15 @@ void CTcpConnection::HandleWrite(void)
 
 void CTcpConnection::HandleClose(void)
 {
-    printf("prepare to close socket\n");
-    ::exit(-1);
+    //printf("prepare to close socket\n");
+    m_channel->DisableAll();
+    m_channel->Remove();
+    ::close(m_channel->Fd());
+}
+
+void CTcpConnection::ForceClose(void)
+{
+    HandleClose();
 }
 
 void CTcpConnection::Send(const char* buf, int32_t len)

@@ -5,6 +5,7 @@
 #include "example/test_shm_queue.cc"
 #include "example/test_server_client.cc"
 #include "example/test_rpc_server_client.cc"
+#include "example/test_http_server.cc"
 #include "example/test_coroutine.cc"
 #include "example/test_timer_queue.cc"
 
@@ -53,7 +54,8 @@ int main(void)
 {
     printf("hello world\n");    
     //TestShm();
-    CTestNet::TestTcpServer();
+    CTestHttp::TestHttpServer();
+    //CTestNet::TestTcpServer();
     //CTestNet::TestTcpClient();
     //CTestRpcNet::TestRpcServer();
     //CTestRpcNet::TestRpcClient();
