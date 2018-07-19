@@ -73,6 +73,11 @@ void CChannel::Remove(void)
 
 void CChannel::HandleEvent(void)
 {
+    if ((m_ready_events & POLLHUP) && !(m_ready_events & POLLIN))
+    {
+        printf("may close socket\n");
+    }
+
     // registered read event
     if (m_ready_events & (POLLIN | POLLPRI))
     {

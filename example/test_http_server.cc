@@ -13,10 +13,15 @@ public:
 
 void CTestHttp::TestHttpCallback(const std::string& request, std::string& response)
 {
-    printf("http request: %s\n", request.c_str());   
+    //printf("http request: %s\n", request.c_str());   
     response =  "HTTP/1.1 200 OK\r\n"
-                "Connection: Keep-Alive\r\n";
-    printf("http response: %s\n", response.c_str());
+                "Content-Length: 14\r\n"
+                "Connection: Keep-Alive\r\n"
+                "Content-Type: text/plain\r\n"
+                "Server: sakula\r\n"
+                "\r\n"
+                "hello, world!\r\n";
+    //printf("http response: %s\n", response.c_str());
 }
 
 void CTestHttp::TestHttpServer(void)

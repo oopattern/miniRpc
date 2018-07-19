@@ -25,5 +25,8 @@ void CHttpServer::OnMessage(CTcpConnection* conn_ptr, char* buf, int32_t len)
     std::string response;
     m_http_callback(request, response);
     conn_ptr->Send(response.c_str(), response.size());    
-    conn_ptr->ForceClose();
+    // use strace found, when write to socket, shutdown socket will get SIGPIPE
+    // so it will kill process by default, we can ignore the signal when start with main
+    // the right time to shutdown the socket is no more writing.
+    //conn_ptr->ShutDown();
 }

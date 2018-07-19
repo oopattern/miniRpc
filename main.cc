@@ -8,6 +8,7 @@
 #include "example/test_http_server.cc"
 #include "example/test_coroutine.cc"
 #include "example/test_timer_queue.cc"
+#include "example/test_kafka_producer.cc"
 
 
 using namespace std;
@@ -50,17 +51,18 @@ void TestShm(void)
 
 
 
-int main(void)
+int main(int argc, char* argv[])
 {
     printf("hello world\n");    
     //TestShm();
-    CTestHttp::TestHttpServer();
+    //CTestHttp::TestHttpServer();
     //CTestNet::TestTcpServer();
     //CTestNet::TestTcpClient();
     //CTestRpcNet::TestRpcServer();
     //CTestRpcNet::TestRpcClient();
     //CTestTimer::TestTimer();
     //TestSortMerge();
+    CTestKafkaProduce::TestProduce(argc, argv);
     return 0;
 }
 

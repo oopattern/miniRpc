@@ -35,7 +35,7 @@ CEventLoop* CTcpServer::GetNextLoop(void)
 {
     if (m_io_loop_vec.empty())
     {
-        printf("GetNextLoop connection use base loop\n");
+        //printf("GetNextLoop connection use base loop\n");
         return m_base_loop;
     }
 
@@ -82,7 +82,7 @@ void CTcpServer::Start(void)
 void CTcpServer::NewConnection(int32_t connfd)
 {
     // find pthread to handle this connection
-    printf("build new connection\n");
+    //printf("build new connection\n");
 
     CEventLoop* io_loop = GetNextLoop();
 

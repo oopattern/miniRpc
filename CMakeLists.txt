@@ -1,6 +1,13 @@
 
 cmake_minimum_required (VERSION 2.8)
 
+# boost setting
+set(Boost_INCLUDE_DIR /usr/include/)
+set(Boost_LIBRARY_DIR /usr/lib/x86_64-linux-gnu/)
+find_package(Boost COMPONENTS system filesystem program_options REQUIRED)
+include_directories(${Boost_INCLUDE_DIR})
+link_directories(${Boost_LIBRARY_DIR})
+
 # CXXFLAG: -Wall should be add
 # CXXFLAG: ubuntu can not use -lpthread, instead, use -pthread
 # Link   : ubuntu use target_link_libraries method to add system lib to target
@@ -12,6 +19,9 @@ set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3 -Wall")
 
 # assembly language support in CMake
 set_property(SOURCE third_party/libco/coctx_swap.S PROPERTY LANGUAGE C)
+
+# print variable
+# MESSAGE (STATUS ${CMAKE_CURRENT_SOURCE_DIR})
 
 # auto generate *.pb.cc and *.pb.h from proto
 # command: # proto --cpp_out=out_dir --proto_path=in_dir path/to/.proto
@@ -58,4 +68,4 @@ add_executable( demo
 # -lpthread: use for mutli pthread
 # -lprotobuf: use for protobuf and rpc
 # -ldl: use for dlsym 
-target_link_libraries(demo rt pthread protobuf dl)
+target_link_libraries(demo rt pthread protobuf dl cppkafka rdkafka Boost::program_options)

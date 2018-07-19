@@ -215,7 +215,7 @@ void CTcpConnection::HandleRead(void)
     nread = ::read(m_channel->Fd(), buf, sizeof(buf));    
     if (0 >= nread)
     {
-        printf("HandleRead happen error: %s\n", ::strerror(errno));
+        //printf("HandleRead happen error: %s\n", ::strerror(errno));
         HandleClose();
         return;
     }
@@ -305,9 +305,11 @@ void CTcpConnection::HandleClose(void)
     ::close(m_channel->Fd());
 }
 
-void CTcpConnection::ForceClose(void)
+void CTcpConnection::ShutDown(void)
 {
-    HandleClose();
+    //m_channel->DisableAll();
+    //m_channel->Remove();
+    ::shutdown(m_channel->Fd(), SHUT_WR);
 }
 
 void CTcpConnection::Send(const char* buf, int32_t len)
