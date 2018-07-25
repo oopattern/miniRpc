@@ -38,7 +38,7 @@ if __name__ == '__main__':
     print('hello sakula')
 
     addr = ("127.0.0.1",8888)
-    data = ['a'] * 128 * 1024
+    data = ['a'] * 1
     total = 0.0
 
     print data
@@ -47,14 +47,8 @@ if __name__ == '__main__':
     s = CSocket()
     s.Init(addr)
     if s.IsConnected() == True:        
-        send_len = 0
-        for i in range(1000):
-            total += len(data)
-            send_len = s.Send(data)
-            time.sleep(2)
-            print("send data len=%d" % send_len)
-    
-    print('send data size=%.2f(Kb) finish' % (total / 1024))
+        send_len = s.Send(data)
+        print("send data len=%d" % send_len)
 
     while 1:
         print('sleep for every 2 seconds')

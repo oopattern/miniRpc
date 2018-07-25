@@ -57,12 +57,12 @@ int main(int argc, char* argv[])
     //TestShm();
     //CTestHttp::TestHttpServer();
     //CTestNet::TestTcpServer();
-    //CTestNet::TestTcpClient();
+    CTestNet::TestTcpClient();
     //CTestRpcNet::TestRpcServer();
     //CTestRpcNet::TestRpcClient();
     //CTestTimer::TestTimer();
     //TestSortMerge();
-    CTestKafkaProduce::TestProduce(argc, argv);
+    //CTestKafkaProduce::TestProduce(argc, argv);
     return 0;
 }
 
